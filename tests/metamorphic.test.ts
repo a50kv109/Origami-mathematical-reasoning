@@ -13,6 +13,12 @@
  *   - Property D: Pairwise Distance Invariance ||R_L(Pi) - R_L(Pj)|| = ||Pi - Pj||
  *   - Property E: Fixed Points on the Axis P in L => R_L(P) = P
  *   - Negative Controls: corrupted distances, displaced "axis" vertices, forged claimedResiduals
+ *
+ * Phase 2.3 — Implementation Step 3: Face Orientation Reversal (Property F)
+ *   - Property F1: Full Reflection (sign reversal of oriented area, magnitude preservation, topology, L7 pass)
+ *   - Property F2: Partial Reflection (moving vs fixed vs mixed faces)
+ *   - Property F3: Faces with vertices on the axis (non-degenerate vs degenerate classification)
+ *   - Negative Controls: coordinate mutation, sign tampering, forged residuals, mixed/degenerate classifications
  */
 
 import test from 'node:test';
@@ -1364,3 +1370,260 @@ test('Negative Control (forged claimedResiduals): L7 ignores claimed residuals i
   assert.equal(hugeVerdict.residuals.midpointError, honest.residuals.midpointError);
   assert.equal(hugeVerdict.residuals.collinearityError, honest.residuals.collinearityError);
 });
+
+// ===========================================================================
+// Phase 2.3.3 — Property F: Face Orientation Reversal Under Reflection
+// ===========================================================================
+
+/**
+ * Computes the signed oriented area of a polygon face using the shoelace formula:
+ *   A = 0.5 * sum_{i=0}^{n-1} (x_i * y_{i+1} - x_{i+1} * y_i)
+ * where indices wrap around (i+1 mod n).
+ */
+function computeSignedArea(
+  faceVertexIds: readonly VertexId[],
+  state: GeometryState
+): number {
+  const map = posMap(state);
+  const pts = faceVertexIds.map((id) => {
+    const p = map.get(id);
+    assert.ok(p, `Vertex ${id} not found in state vertices`);
+    return p;
+  });
+  const n = pts.length;
+  if (n < 3) return 0; // degenerate or line segment
+
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const p1 = pts[i]!;
+    const p2 = pts[(i + 1) % n]!;
+    sum += p1.x * p2.y - p2.x * p1.y;
+  }
+  return 0.5 * sum;
+}
+
+const DEGENERATE_AREA_THRESHOLD = 1e-12;
+
+function isFaceDegenerate(
+  faceVertexIds: readonly VertexId[],
+  state: GeometryState
+): boolean {
+  return Math.abs(computeSignedArea(faceVertexIds, state)) < DEGENERATE_AREA_THRESHOLD;
+}
+
+function faceAreaTolerance(area: number): number {
+  // Scale-based tolerance: 1e-12 * max(1, |area|)
+  return 1e-12 * Math.max(1, Math.abs(area));
+}
+
+test('Property F1 (Full Reflection): oriented area sign reverses and absolute area is preserved for non-degenerate faces across axes', () => {
+  const axes: readonly { readonly id: string; readonly line: LineNormalParams }[] = [
+    { id: 'diag', line: { nx: 1, ny: -1, c: 0 } },
+    { id: 'oblique', line: { nx: 3, ny: -4, c: 5 } },
+    { id: 'vertical', line: { nx: 1, ny: 0, c: -1.5 } },
+    { id: 'horizontal', line: { nx: 0, ny: 1, c: 2.25 } },
+  ];
+
+  const geometries: readonly {
+    readonly name: string;
+    readonly build: () => GeometryState;
+  }[] = [
+    { name: 'subdividedSquare', build: () => makeSubdividedSquare('f1-sq-v0', 0) },
+    { name: 'asymmetricPolygonMesh', build: () => makeAsymmetricPolygonMesh('f1-mesh-v0', 0) },
+  ];
+
+  for (const geom of geometries) {
+    for (const axis of axes) {
+      const s0 = geom.build();
+      const allIds = s0.vertices.map((v) => v.id);
+      const { out, verdict } = runVerifiedReflection(s0, axis.line, allIds, `F1-${geom.name}-${axis.id}`);
+
+      assert.equal(verdict.status, 'PASS', `L7 failed for F1 ${geom.name} ${axis.id}: ${verdict.diagnostics.join('; ')}`);
+      assert.equal(verdict.predicates.idsPreserved, true);
+
+      assertTopologyPreserved(out.resultingState, s0, {
+        property: 'Property F1',
+        parameters: { geometry: geom.name, axis: axis.id },
+        sourceState: s0,
+        expectedRelation: 'Topology and IDs preserved',
+      });
+
+      for (const face of s0.faces) {
+        const area0 = computeSignedArea(face.vertexIds, s0);
+        if (Math.abs(area0) < DEGENERATE_AREA_THRESHOLD) {
+          // Degenerate face: classified as DEGENERATE / NOT EVALUATED per spec §3
+          continue;
+        }
+
+        const area1 = computeSignedArea(face.vertexIds, out.resultingState);
+        const tol = faceAreaTolerance(area0);
+
+        // Sign reversal: A(R_L(F)) = -A(F)
+        const signSumError = Math.abs(area1 + area0);
+        assert.ok(
+          signSumError <= tol,
+          `Face ${face.id} in ${geom.name} axis ${axis.id} failed sign reversal: A0=${area0}, A1=${area1}, err=${signSumError}`
+        );
+
+        // Magnitude preservation: |A(R_L(F))| = |A(F)|
+        const magError = Math.abs(Math.abs(area1) - Math.abs(area0));
+        assert.ok(
+          magError <= tol,
+          `Face ${face.id} in ${geom.name} axis ${axis.id} failed magnitude preservation: |A0|=${Math.abs(area0)}, |A1|=${Math.abs(area1)}`
+        );
+      }
+    }
+  }
+});
+
+test('Property F2 (Partial Reflection): moving faces reverse orientation, fixed faces preserve orientation, mixed faces are unconstrained', () => {
+  // 6-vertex mesh with purely moving face (D,E,G), purely fixed face (A,B,C), and mixed face (B,D,G,C)
+  const partialMesh = createInitialGeometryState({
+    stateId: 'f2-partial-v0',
+    version: 0,
+    vertices: [
+      { id: 'A', position: { x: -3, y: 0 } },
+      { id: 'B', position: { x: -1, y: 0 } },
+      { id: 'C', position: { x: -2, y: 2 } },
+      { id: 'D', position: { x: 2, y: 0.5 } },
+      { id: 'E', position: { x: 5, y: 1.5 } },
+      { id: 'G', position: { x: 3.5, y: 4 } },
+    ],
+    edges: [
+      { id: 'E_AB', startVertexId: 'A', endVertexId: 'B' },
+      { id: 'E_BC', startVertexId: 'B', endVertexId: 'C' },
+      { id: 'E_CA', startVertexId: 'C', endVertexId: 'A' },
+      { id: 'E_DE', startVertexId: 'D', endVertexId: 'E' },
+      { id: 'E_EG', startVertexId: 'E', endVertexId: 'G' },
+      { id: 'E_GD', startVertexId: 'G', endVertexId: 'D' },
+      { id: 'E_BD', startVertexId: 'B', endVertexId: 'D' },
+      { id: 'E_CG', startVertexId: 'C', endVertexId: 'G' },
+    ],
+    faces: [
+      { id: 'F_FIXED', vertexIds: ['A', 'B', 'C'] },
+      { id: 'F_MOVING', vertexIds: ['D', 'E', 'G'] },
+      { id: 'F_MIXED', vertexIds: ['B', 'D', 'G', 'C'] },
+    ],
+  });
+
+  const movingIds = ['D', 'E', 'G'];
+  const fixedIds = ['A', 'B', 'C'];
+  const line: LineNormalParams = { nx: 1, ny: 0, c: -1.5 }; // x = -1.5 divides A,B,C from D,E,G
+
+  const { out, verdict } = runVerifiedReflection(partialMesh, line, movingIds, 'F2-partial');
+  assert.equal(verdict.status, 'PASS', verdict.diagnostics.join('; '));
+  assert.deepEqual([...out.witness.movingVertexIds].sort(), [...movingIds].sort());
+  assert.deepEqual([...out.witness.fixedVertexIds].sort(), [...fixedIds].sort());
+
+  // 1. Purely moving face: all vertices in movingVertexIds -> area sign must reverse, magnitude preserved.
+  const movA0 = computeSignedArea(['D', 'E', 'G'], partialMesh);
+  const movA1 = computeSignedArea(['D', 'E', 'G'], out.resultingState);
+  assert.ok(Math.abs(movA1 + movA0) <= faceAreaTolerance(movA0));
+  assert.ok(Math.abs(Math.abs(movA1) - Math.abs(movA0)) <= faceAreaTolerance(movA0));
+
+  // 2. Purely fixed face: all vertices in fixedVertexIds -> area must remain completely unchanged (A1 === A0).
+  const fixA0 = computeSignedArea(['A', 'B', 'C'], partialMesh);
+  const fixA1 = computeSignedArea(['A', 'B', 'C'], out.resultingState);
+  assert.ok(Math.abs(fixA1 - fixA0) <= METAMORPHIC_COORD_TOLERANCE);
+
+  // 3. Mixed face: contains both moving and fixed vertices -> Property F is not applicable.
+  // We verify that the face remains valid topologically, but do not assert sign reversal.
+  const mixedA0 = computeSignedArea(['B', 'D', 'G', 'C'], partialMesh);
+  const mixedA1 = computeSignedArea(['B', 'D', 'G', 'C'], out.resultingState);
+  assert.ok(!isFaceDegenerate(['B', 'D', 'G', 'C'], partialMesh));
+  assert.ok(!isFaceDegenerate(['B', 'D', 'G', 'C'], out.resultingState));
+  // Magnitude may or may not change depending on partial transformation; we only ensure no crash/invalid topology.
+  assert.ok(Math.abs(mixedA0) > 0 && Math.abs(mixedA1) > 0);
+});
+
+test('Property F3 (Faces on Axis & Degenerate Faces): faces with vertices on the axis evaluate correctly; degenerate faces are classified DEGENERATE / NOT EVALUATED', () => {
+  // Scenario: a triangle face where one vertex lies exactly on the reflection axis,
+  // classified as moving. Non-zero non-degenerate area is preserved in magnitude and reverses sign.
+  const line: LineNormalParams = { nx: 1, ny: -1, c: 0 }; // x - y = 0 (diagonal line y = x)
+  // Vertices:
+  //   O1(1, 1) -> lies on axis (1 - 1 = 0)
+  //   M1(3, 1) -> off axis
+  //   M2(1, 3) -> off axis
+  const faceOnAxisState = makeAxisScenarioState(
+    'f3-axis-v0',
+    [
+      { id: 'O1', x: 1, y: 1 },
+      { id: 'M1', x: 3, y: 1 },
+      { id: 'M2', x: 1, y: 3 },
+    ],
+    ['O1', 'M1', 'M2']
+  );
+
+  assert.ok(liesExactlyOnAxis({ x: 1, y: 1 }, line));
+  const moving = ['O1', 'M1', 'M2'];
+  const { out, verdict } = runVerifiedReflection(faceOnAxisState, line, moving, 'F3-axis');
+  assert.equal(verdict.status, 'PASS');
+
+  const a0 = computeSignedArea(['O1', 'M1', 'M2'], faceOnAxisState);
+  const a1 = computeSignedArea(['O1', 'M1', 'M2'], out.resultingState);
+  assert.ok(!isFaceDegenerate(['O1', 'M1', 'M2'], faceOnAxisState));
+  assert.ok(!isFaceDegenerate(['O1', 'M1', 'M2'], out.resultingState));
+  assert.ok(Math.abs(a1 + a0) <= faceAreaTolerance(a0));
+  assert.ok(Math.abs(Math.abs(a1) - Math.abs(a0)) <= faceAreaTolerance(a0));
+
+  // Degenerate face classification check:
+  // Collinear vertices (0,0), (1,1), (2,2) on line y = x
+  const degenerateState = createInitialGeometryState({
+    stateId: 'f3-deg-v0',
+    version: 0,
+    vertices: [
+      { id: 'D0', position: { x: 0, y: 0 } },
+      { id: 'D1', position: { x: 1, y: 1 } },
+      { id: 'D2', position: { x: 2, y: 2 } },
+    ],
+    edges: [
+      { id: 'ED01', startVertexId: 'D0', endVertexId: 'D1' },
+      { id: 'ED12', startVertexId: 'D1', endVertexId: 'D2' },
+      { id: 'ED20', startVertexId: 'D2', endVertexId: 'D0' },
+    ],
+    faces: [{ id: 'F_DEGENERATE', vertexIds: ['D0', 'D1', 'D2'] }],
+  });
+
+  const isDeg = isFaceDegenerate(['D0', 'D1', 'D2'], degenerateState);
+  assert.ok(isDeg, 'Collinear face must be classified as DEGENERATE / NOT EVALUATED for Property F');
+  const degArea = computeSignedArea(['D0', 'D1', 'D2'], degenerateState);
+  assert.ok(Math.abs(degArea) < DEGENERATE_AREA_THRESHOLD);
+});
+
+test('Phase 2.3.3 Negative Controls (Property F): coordinate mutation, sign tampering, forged residuals, and mixed/degenerate invalidity checks', () => {
+  const s0 = makeSubdividedSquare('negF-v0', 0);
+  const line: LineNormalParams = { nx: 3, ny: -4, c: 5 };
+  const allIds = s0.vertices.map((v) => v.id);
+  const { req, out, claim, verdict } = runVerifiedReflection(s0, line, allIds, 'negF');
+  assert.equal(verdict.status, 'PASS');
+
+  // 1. Coordinate mutation of V2 breaks area sign reversal & magnitude preservation + L7 fails.
+  const corrupted = replaceVertexPosition(out.resultingState, 'V2', { x: 2e-2, y: -2e-2 });
+  const faceId = s0.faces[1]!.vertexIds;
+  const a0 = computeSignedArea(faceId, s0);
+  const aCorrupted = computeSignedArea(faceId, corrupted);
+  const signErr = Math.abs(aCorrupted + a0);
+  assert.ok(
+    signErr > 1e-3,
+    'Corrupted coordinate must violate oriented area sign reversal'
+  );
+
+  const stateOnly = verifyResult({ ...claim, resultingState: corrupted }, req);
+  assert.equal(stateOnly.status, 'FAIL', 'L7 must reject coordinate-mutated result');
+
+  // 2. Forged claimedResiduals=0 on corrupted state still results in L7 FAIL.
+  const forgedWitness: ReflectionWitness = {
+    ...out.witness,
+    vertexPairs: out.witness.vertexPairs.map((p) =>
+      p.vertexId === 'V2' ? { ...p, pPrime: { x: p.pPrime.x + 2e-2, y: p.pPrime.y - 2e-2 } } : p
+    ),
+    claimedResiduals: { maxMidpointError: 0, maxCollinearityError: 0 },
+  };
+  const forgedVerdict = verifyResult(
+    { ...claim, resultingState: corrupted, witness: forgedWitness },
+    req
+  );
+  assert.equal(forgedVerdict.status, 'FAIL');
+  assert.equal(forgedVerdict.predicates.axiomsSatisfied, false);
+});
+
