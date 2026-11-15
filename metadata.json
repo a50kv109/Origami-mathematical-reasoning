@@ -1,6 +1,6 @@
 {
-  "name": "Remix Origami Geometry Core",
-  "description": "Mathematical reasoning and zero-trust geometric verification architecture for origami topology and transformations.",
+  "name": "Origami Mathematical Reasoning (OMR)",
+  "description": "Mathematical reasoning and zero-trust geometric verification core (v0.1.0) for 2D reflection and axiomatic verification.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

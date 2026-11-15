@@ -114,7 +114,7 @@ export function Header({
             </svg>
           </span>
           <span className="font-display text-lg font-bold tracking-tight whitespace-nowrap shrink-0">
-            Origami Core
+            OMR · v0.1.0
           </span>
         </a>
 
@@ -224,9 +224,13 @@ export default function App() {
   const [testCase, setTestCase] = useState<TestCaseId>('T-01');
   const [selectedDocIndex, setSelectedDocIndex] = useState<number>(0);
   const [checkedCriteria, setCheckedCriteria] = useState<Record<number, boolean>>({
-    0: true,
     1: true,
     2: true,
+    3: true,
+    4: true,
+    5: true,
+    6: true,
+    7: true,
   });
 
   const selectedLayer =
@@ -294,16 +298,17 @@ export default function App() {
         >
           <div className="max-w-3xl">
             <p className="text-xs font-medium text-slate-500">
-              Origami Mathematical Reasoning · Project Initiation · Stage 1 Audit & Design
+              Origami Mathematical Reasoning (OMR) · v0.1.0 · Phase 2.1 (Verified 2D Reflection Prototype)
             </p>
             <h1 className="mt-3 max-w-2xl text-balance font-display text-3xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Система математического рассуждения и проверки для AI-агентов
+              Математическое ядро и Zero-Trust верификация
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-600">
-              Инициация исследовательско-инженерного проекта OMR: строгое
-              разделение математического ядра L1–L7, внешних программ
-              проектирования оригами и навыка рассуждения ИИ с опорой на аудит 29
-              ключевых источников и архива Origami-Geometry-Core.
+              Реализованный контур Contract 02 v2 (L2 → ReflectionWitness → TRACE
+              → L7) для 2D-отражений (13/13 автотестов PASS), архитектура L1–L7
+              и реестр 29 источников. Версия v0.1.0 не является системой
+              физического складывания оригами; L1, L3–L6 и адаптеры запланированы
+              на следующие фазы.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <button
@@ -809,11 +814,12 @@ export default function App() {
         <section id="roadmap" className="scroll-mt-24 pt-14">
           <div className="max-w-2xl">
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-              Документация Stage 1, структура репозитория и план этапов
+              Документация OMR v0.1.0, структура репозитория и план этапов
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Все 9 согласованных проектных документов сформированы в каталоге
-              docs/ репозитория для последовательного перехода к Phase 2.
+              Ключевые документы каталога docs/ синхронизированы с фактической
+              реализацией Phase 2.1 (v0.1.0) и определяют переход к Phase 2.2 и
+              Phase 3+.
             </p>
           </div>
 
@@ -850,7 +856,8 @@ export default function App() {
                           active ? 'text-slate-300' : 'text-slate-400'
                         }`}
                       >
-                        {String(idx + 1).padStart(2, '0')}/09
+                        {String(idx + 1).padStart(2, '0')}/
+                        {String(STAGE_ONE_DOCS.length).padStart(2, '0')}
                       </span>
                     </button>
                   );
@@ -888,7 +895,7 @@ export default function App() {
 
               <div className="mt-6 border-t border-slate-100 pt-4">
                 <p className="font-mono text-xs text-slate-500">
-                  Целевая структура репозитория origami-mathematical-reasoning
+                  Фактическая структура репозитория Origami-mathematical-reasoning (v0.1.0)
                 </p>
                 <pre className="mt-2 overflow-x-auto rounded-lg bg-slate-50 p-3.5 font-mono text-xs leading-relaxed text-slate-700">
                   {REPOSITORY_TREE}
@@ -903,18 +910,24 @@ export default function App() {
               <div
                 key={item.phase}
                 className={`rounded-xl border bg-white p-5 ${
-                  item.status === 'В работе'
-                    ? 'border-blue-300'
-                    : 'border-slate-200'
+                  item.status === 'Реализовано (v0.1.0)'
+                    ? 'border-emerald-300'
+                    : item.status === 'В работе'
+                      ? 'border-blue-300'
+                      : 'border-slate-200'
                 }`}
               >
                 <p className="font-mono text-xs text-slate-500">
                   {item.phase} ·{' '}
                   <span
                     className={
-                      item.status === 'В работе'
-                        ? 'font-semibold text-blue-700'
-                        : 'text-slate-600'
+                      item.status === 'Реализовано (v0.1.0)'
+                        ? 'font-semibold text-emerald-700'
+                        : item.status === 'В работе'
+                          ? 'font-semibold text-blue-700'
+                          : item.status === 'Завершено'
+                            ? 'font-semibold text-slate-700'
+                            : 'text-slate-600'
                     }
                   >
                     {item.status}
@@ -987,7 +1000,7 @@ export default function App() {
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <span>Origami Mathematical Reasoning · Stage 1 Initiation</span>
+          <span>Origami Mathematical Reasoning (OMR) · v0.1.0 · Apache-2.0</span>
           <div className="flex flex-wrap items-center gap-6">
             {NAV_ITEMS.map((item) => (
               <a

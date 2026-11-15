@@ -90,7 +90,7 @@ export interface RoadmapPhase {
   phase: string;
   title: string;
   description: string;
-  status: 'Завершено концептуально' | 'В работе' | 'Запланировано';
+  status: 'Завершено' | 'Реализовано (v0.1.0)' | 'В работе' | 'Запланировано';
 }
 
 export interface StageOneDoc {
@@ -105,19 +105,19 @@ export const SYSTEM_CONTOURS: SystemContour[] = [
     code: 'A',
     title: 'Origami Reasoning Core',
     role: 'Математическое ядро (L1–L7, STATE, TRANSFORMATION, TRACE, VERIFICATION)',
-    boundary: 'Не дублирует графический редактор и рендер; отвечает за модель, операции и доказательную проверку.',
+    boundary: 'Не дублирует графический редактор и рендер; в v0.1.0 реализованы L2 (2D-отражение), TRACE и аксиоматический верификатор L7.',
   },
   {
     code: 'B',
     title: 'Origami Design Tools',
     role: 'Внешние программы (Ori Studio, Oriedita, Rabbit Ear, OrigamiSimulator)',
-    boundary: 'Подключаются строго через Tool Integration Layer; результаты возвращаются на Zero-Trust проверку в L7.',
+    boundary: 'Архитектурно спроектированы через Tool Integration Layer (в v0.1.0 адаптеры не реализованы; сторонние архивы не входят в пакет).',
   },
   {
     code: 'C',
     title: 'AI Agent Reasoning Skill',
-    role: 'Связующий интерфейс между естественным языком, ядром и адаптерами',
-    boundary: 'Предлагает план операций, но не имеет права самостоятельно объявлять результат доказанным.',
+    role: 'Запланированный интерфейс между естественным языком, ядром и адаптерами (Phase 8)',
+    boundary: 'Предлагает план операций, но никогда не имеет права самостоятельно объявлять результат доказанным.',
   },
 ];
 
@@ -145,11 +145,11 @@ export const EPISTEMIC_PILLARS: EpistemicPillar[] = [
   {
     index: '03',
     title: 'Что реализовано и проверено',
-    subtitle: 'Подтверждено в аудите PCRS',
+    subtitle: 'Подтверждено в OMR v0.1.0 (Phase 2.1)',
     points: [
-      'В архиве Origami-Geometry-Core (PCRS) подтверждены 2D-ядро отражений src/core/reflection.ts и независимый верификатор independentVerifier.ts.',
-      'Реализованы тесты последовательностей (seq001–003), коды ошибок (включая CAPABILITY_GAP) и допуски для области L ≤ 2.',
-      'Слои L3–L6, контракт L1 ↔ L2, адаптеры внешних программ и AI Skill ещё не интегрированы в единый вычислительный контур.',
+      'Реализован сертифицирующий контур Contract 02 v2 (L2 → ReflectionWitness → TRACE → L7) в src/core/ для 2D REFLECTION_ACROSS_LINE.',
+      'Аксиоматический верификатор L7 проверяет r_mid, r_perp и инварианты области действия (PASS / FAIL / UNDETERMINED, 13/13 автотестов).',
+      'L1 (FACE_SUBDIVISION), L3–L6, CAPABILITY_GAP, доверенный OperationRequest, адаптеры внешних программ и AI Skill в v0.1.0 ещё не реализованы.',
     ],
   },
 ];
@@ -159,13 +159,13 @@ export const CORE_CONCEPTS: CoreConcept[] = [
     term: 'STATE',
     role: 'Типизированное состояние',
     description:
-      'Снимок структуры, топологии и геометрических свойств объекта на определённом этапе построения.',
+      'Глубоко замороженный снимок GeometryState (stateId, version, вершины, рёбра, грани) в IEEE-754 без округления.',
   },
   {
     term: 'TRANSFORMATION',
     role: 'Математическая операция',
     description:
-      'Детерминированный оператор, переводящий объект из одного допустимого состояния в другое (REFLECTION, FACE_SUBDIVISION).',
+      'Детерминированный оператор с проверкой предусловий: в v0.1.0 реализован REFLECTION_ACROSS_LINE, прочие операторы запланированы.',
   },
   {
     term: 'TRACE',
@@ -201,9 +201,9 @@ export const ARCHITECTURE_LAYERS: LayerDetail[] = [
     operations: ['FACE_SUBDIVISION', 'MATERIAL_CUT', 'BIND_IDS'],
     constraint:
       'Принимает геометрические предложения от L2, но утверждает топологическую корректность самостоятельно (опора на PGS-2D).',
-    maturity: 'Проектирование',
+    maturity: 'Проектирование (Phase 3)',
     devNote:
-      'Концепция контракта L1 ↔ L2 прошла аудит; требуется формальная схема и тесты.',
+      'В v0.1.0 не реализован; исходная топология передаётся через createInitialGeometryState.',
   },
   {
     code: 'L2',
@@ -211,16 +211,16 @@ export const ARCHITECTURE_LAYERS: LayerDetail[] = [
     space: 'Координатное пространство ℝ², ℝ³',
     purpose: 'Детерминированное математическое представление в координатах.',
     responsibilities: [
-      'Координаты вершин, расстояния, углы и площади',
-      'Вычисление пересечений и геометрических предложений',
-      'Привязка координат к топологическим идентификаторам',
+      'Координаты вершин в IEEE-754 без округления (.toFixed запрещён)',
+      'Вычисление ортогональной проекции REFLECTION_ACROSS_LINE и частичного отражения',
+      'Выпуск глубоко замороженного свидетельства ReflectionWitness и записи TRACE',
     ],
-    operations: ['BIND_GEOMETRY', 'REFLECTION', 'INTERSECT'],
+    operations: ['REFLECTION_ACROSS_LINE (v0.1.0)', 'BIND_GEOMETRY (план)', 'INTERSECT (план)'],
     constraint:
-      'Базовый проверочный сценарий: аффинное отражение треугольной грани квадрата относительно прямой x + y = 1.',
-    maturity: 'Проектирование (2D-прототип в PCRS)',
+      'В v0.1.0 реализован оператор REFLECTION_ACROSS_LINE (nx·x + ny·y = c) для произвольного предразбитого 2D-состояния.',
+    maturity: 'Реализовано для 2D REFLECTION (v0.1.0)',
     devNote:
-      'В PCRS реализован src/core/reflection.ts (Float64, L ≤ 2). Требуется согласование с BigInt (GIEM / Fedorov).',
+      'Реализован в src/core/l2GeometryEngine.ts (Float64). Переход к BigInt и 3D отложен на следующие фазы.',
   },
   {
     code: 'L3',
@@ -292,18 +292,18 @@ export const ARCHITECTURE_LAYERS: LayerDetail[] = [
     code: 'L7',
     name: 'Independent Verification Layer',
     space: 'Zero-Trust проверка',
-    purpose: 'Независимый пересчёт операций и доказательная оценка результата.',
+    purpose: 'Независимая аксиоматическая оценка результата и процесса без доверия к L2.',
     responsibilities: [
-      'Проверка геометрических инвариантов и топологических предикатов',
-      'Независимый пересчёт преобразований без общего кода с генератором',
-      'Вердикты PASS / FAIL / UNDETERMINED и семантический отказ CAPABILITY_GAP',
+      'Четырёхэтапная проверка допустимости входов, привязки свидетельства и аксиом r_mid / r_perp',
+      'Независимое вычисление длин, площади по Гауссу (Shoelace) и инверсии ориентации без кода L2',
+      'Вердикты PASS / FAIL / UNDETERMINED (CAPABILITY_GAP запланирован на Phase 2.2+)',
     ],
-    operations: ['VERIFY_REFLECTION', 'VERIFY_TRACE', 'CHECK_INVARIANTS'],
+    operations: ['verifyResult', 'verifyProcess'],
     constraint:
-      'Совпадение двух реализаций на одном алгоритме не считается независимой проверкой.',
-    maturity: 'Проектирование (2D-прототип в PCRS)',
+      'Нулевой рантайм-импорт из L2 и TRACE; диагностика witness.claimedResiduals принудительно игнорируется.',
+    maturity: 'Реализовано для Contract 02 v2 (v0.1.0)',
     devNote:
-      'Первый приоритет Phase 2 — Contract 02 (L2 ↔ L7) для оператора REFLECTION.',
+      'Реализован в src/core/l7IndependentVerifier.ts; покрыт 13 автотестами в tests/contract02.test.ts.',
   },
 ];
 
@@ -318,19 +318,19 @@ export const CONTRACTS: ContractSpec[] = [
       'Разделение границ граней и диагоналей сгиба (PGS-2D)',
       'Версионирование состояний и FACE_SUBDIVISION',
     ],
-    status: 'Концепция прошла аудит · Требуется формальная схема (Phase 3)',
+    status: 'Не реализован в v0.1.0 · Запланирован на Phase 3',
   },
   {
-    id: 'Contract 02',
+    id: 'Contract 02 v2',
     pair: 'L2 ↔ L7',
     subject: 'Geometry ↔ Independent Verification',
-    targetScenario: '2D Affine Reflection (x + y = 1)',
+    targetScenario: '2D Affine Reflection (nx·x + ny·y = c)',
     topics: [
-      'Входные координаты, ось отражения и матрица R = 2uuᵀ - I',
-      'Автономный пересчёт площади (Shoelace) и инвариантов длин',
-      'Вердикты PASS / FAIL / UNDETERMINED / CAPABILITY_GAP',
+      'LineNormalParams, ReflectionWitness и замороженный журнал TRACE',
+      'Масштаб-инвариантные аксиомы r_mid, r_perp и инварианты (Shoelace, длины)',
+      'Вердикты PASS / FAIL / UNDETERMINED (допуски 1e-7 / 1e-12)',
     ],
-    status: 'Следующий приоритет · В разработке (Phase 2)',
+    status: 'Реализовано и верифицировано в OMR v0.1.0 (Phase 2.1 · 13/13 PASS)',
   },
 ];
 
@@ -345,10 +345,10 @@ export const SUBSEQUENT_CONTRACTS = [
 export const TOOL_ADAPTERS: ToolAdapterSpec[] = [
   {
     name: 'Ori Studio',
-    stack: 'Rust / WASM (oristudio-cp, oristudio-fold, oristudio-layer-order)',
-    confirmed: 'Модульное разделение крейтов для развёртки, плоских/составных сгибов и порядка слоёв.',
-    unverifiedApi: 'Требуется проверка наличия стабильного headless JS/WASM-контракта вызова без GUI.',
-    role: 'Архитектурный референс L1–L4 и расчёт Z-порядка',
+    stack: 'Rust / WASM (workspace GPL-2.0-or-later; oristudio-geometry — MIT OR Apache-2.0)',
+    confirmed: 'Аудиты Stage 1–2 подтвердили Line::reflect_point, O1..O7 и TOL = 1e-6 в oristudio-geometry, а также модули oristudio-fold и oristudio-layer-order.',
+    unverifiedApi: 'В oristudio-geometry отсутствует прямой JS/WASM-экспорт reflect_point и отражение графов; в OMR v0.1.0 интеграция не реализована.',
+    role: 'Архитектурный референс L1–L4, внешний оракул и расчёт Z-порядка',
   },
   {
     name: 'Oriedita',
@@ -651,12 +651,12 @@ export const SOURCES_29: SourceEntry[] = [
   },
   {
     id: 25,
-    title: 'Базовый пакет проекта (4 MD-файла)',
+    title: 'Базовый пакет документов OMR (docs/)',
     author: 'Команда OMR',
     year: '2026',
     category: 'Specs & Reports',
     layers: ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7'],
-    summary: 'core_architecture.md, project_readme.md, development_status.md, modular_mathematical_identity.md.',
+    summary: 'PROJECT_README.md, ARCHITECTURE.md, RESEARCH_L2_L7_SOURCES.md, MODULAR_MATHEMATICAL_IDENTITY.md и спецификации прототипа.',
     reference: 'Документы в каталоге /docs/',
     isTop14: true,
     top14Rank: 1,
@@ -711,34 +711,34 @@ export const SOURCES_29: SourceEntry[] = [
 
 export const REUSE_AUDIT_ITEMS: ReuseItem[] = [
   {
-    module: 'src/core/reflection.ts',
-    origin: 'Origami-Geometry-Core (PCRS)',
+    module: 'src/core/l2GeometryEngine.ts',
+    origin: 'Собственная реализация OMR Phase 2.1 (вдохновлена PCRS)',
     status: 'REUSE',
-    detail: 'Подтверждённое в архиве чистое 2D-ядро (R = 2uuᵀ - I, Float64, проверка NaN/Infinity). Готово к адаптации в L2.',
+    detail: 'Чистое 2D-ядро отражений (ортогональная проекция в IEEE-754 без .toFixed(), выпуск ReflectionWitness).',
   },
   {
-    module: 'src/verifier/independentVerifier.ts',
-    origin: 'Origami-Geometry-Core (PCRS)',
+    module: 'src/core/l7IndependentVerifier.ts',
+    origin: 'Собственная реализация OMR Phase 2.1',
     status: 'REUSE',
-    detail: 'Автономный верификатор (собственная формула Гаусса, коды CAPABILITY_GAP). Ограничение: допуски калиброваны для L ≤ 2.',
+    detail: 'Изолированный аксиоматический верификатор (r_mid, r_perp, формула Гаусса, PASS/FAIL/UNDETERMINED). CAPABILITY_GAP отложен на Phase 2.2+.',
   },
   {
     module: 'PGS-2D (Polygon(n) + Construction DAG)',
     origin: 'Portable-Geometric-State-2D',
     status: 'ADOPT',
-    detail: 'Целевая контрактная основа для Contract 01 (L1 ↔ L2): разделение границ граней, диагоналей и portableId != localId.',
+    detail: 'Целевая контрактная основа для Contract 01 (L1 ↔ L2): разделение границ граней, диагоналей и portableId != localId (Phase 3).',
   },
   {
-    module: 'Согласование Float64 vs BigInt (GIEM / STL V1)',
-    origin: 'Аудит PCRS vs AI Geometry Skill',
+    module: 'OperationRequest и Float64 vs BigInt',
+    origin: 'Аудит v0.1.0 / GIEM / STL V1',
     status: 'GAP',
-    detail: 'PCRS использует Float64 с допусками 1e-7/1e-9, а GIEM — точную рациональную арифметику. Требует унификации в Contract 02.',
+    detail: 'В v0.1.0 ядро работает в Float64 и не имеет отдельного доверенного OperationRequest в VerificationClaim (запланировано на Phase 2.2+).',
   },
   {
-    module: 'Единый формат TRACE и порядок слоёв L3',
+    module: 'Криптография TRACE и порядок слоёв L3',
     origin: 'Сквозной аудит L1–L7',
     status: 'GAP',
-    detail: 'В PCRS отсутствует формализация перекрытия слоёв (Z-order) и единый переносимый журнал TRACE между слоями.',
+    detail: 'В v0.1.0 реализован in-memory TRACE (src/core/trace.ts); JCS+SHA-256 и Z-порядок слоёв L3 остаются на последующие фазы.',
   },
 ];
 
@@ -782,14 +782,14 @@ export const ROADMAP_PHASES: RoadmapPhase[] = [
   {
     phase: 'Phase 01',
     title: 'Mathematical Foundation',
-    description: 'Формализация базовых операций, состояний STATE / TRACE, разделения контуров и аудита источников.',
-    status: 'Завершено концептуально',
+    description: 'Формализация архитектуры L1–L7, понятий STATE / TRACE, дисциплины доказательств и аудита источников.',
+    status: 'Завершено',
   },
   {
-    phase: 'Phase 02',
-    title: 'L2 ↔ L7 · Contract 02',
-    description: 'Разработка Contract 02 и независимого верификатора для оператора REFLECTION (на базе PCRS).',
-    status: 'В работе',
+    phase: 'Phase 02 (2.1)',
+    title: 'L2 ↔ L7 · Contract 02 v2',
+    description: 'Реализовано 2D-отражение (LineNormalParams), ReflectionWitness, TRACE и аксиоматический L7 (13/13 PASS); Phase 2.2 доработает OperationRequest и CAPABILITY_GAP.',
+    status: 'Реализовано (v0.1.0)',
   },
   {
     phase: 'Phase 03',
@@ -835,34 +835,34 @@ export const SUCCESS_CRITERIA: string[] = [
   'Выбрать допустимую операцию с проверкой условий применимости.',
   'Выполнить преобразование с обновлением состояния.',
   'Сохранить воспроизводимую историю построения (TRACE).',
-  'Независимо пересчитать результат в слое L7 без доверия генератору.',
+  'Независимо проверить результат в слое L7 без доверия генератору.',
   'Выявить математическую ошибку, включая ошибки собственного генератора.',
   'Обосновать принятие или отклонение итогового объекта.',
 ];
 
 export const STAGE_ONE_DOCS: StageOneDoc[] = [
   {
-    filename: 'docs/PROJECT_README.md',
-    title: 'PROJECT_README.md',
-    scope: 'Назначение OMR, три разделённых контура (Ядро / Инструменты / Навык ИИ) и главный принцип Goal-Oriented Verification.',
+    filename: 'README.md & docs/PROJECT_README.md',
+    title: 'README.md / PROJECT_README.md',
+    scope: 'Назначение OMR v0.1.0, границы релиза (не физический симулятор), команды запуска и три разделённых контура.',
     keyTakeaways: [
-      'OMR — система математического рассуждения, а не графический редактор.',
-      'Чёткий поток: Natural Language → Core Model → Tool Adapter → Result → L7 Verification.',
+      'OMR v0.1.0 реализует проверяемый 2D-контур L2 ↔ L7 для REFLECTION_ACROSS_LINE.',
+      'Чёткая граница между математическим ядром, внешними программами и будущим AI Skill.',
     ],
   },
   {
     filename: 'docs/ARCHITECTURE.md',
     title: 'ARCHITECTURE.md',
-    scope: 'Семислойная модель L1–L7, пять фундаментальных понятий и контракты L1 ↔ L2 и L2 ↔ L7.',
+    scope: 'Семислойная модель L1–L7, статус Contract 01 (план) и реализованного Contract 02 v2 (L2 ↔ L7).',
     keyTakeaways: [
       'Запрещено сливать состояния в единый монолитный кортеж S = (G, A, X, L, K).',
-      'AI Skill никогда не выносит вердикт PASS самостоятельно.',
+      'L7 работает без рантайм-импортов из L2/TRACE; открытый риск отсутствия OperationRequest зафиксирован.',
     ],
   },
   {
     filename: 'docs/RESEARCH_BASE.md',
     title: 'RESEARCH_BASE.md',
-    scope: 'Эпистемическая дисциплина: 5 статусов утверждений, запрет подмены доказательств симуляцией или скорингом.',
+    scope: 'Эпистемическая дисциплина: статусы утверждений, запрет подмены доказательств симуляцией или скорингом.',
     keyTakeaways: [
       'Симуляция ≠ доказательство; оптимизационный балл ≠ корректность.',
       'Каждое математическое утверждение сопровождается тестом и контрпримером.',
@@ -871,73 +871,68 @@ export const STAGE_ONE_DOCS: StageOneDoc[] = [
   {
     filename: 'docs/SOURCE_REGISTRY.md',
     title: 'SOURCE_REGISTRY.md',
-    scope: 'Полный реестр 29 релевантных источников (из 58 в библиотеке) и приоритетный список Top-14.',
+    scope: 'Полный реестр 29 релевантных источников (из 58) и происхождение/лицензии исключённых внешних архивов.',
     keyTakeaways: [
-      'Разделены на 4 группы: симуляторы/датасеты, стенды/верификаторы, PDF-литература, отчёты.',
-      'Вспомогательные 29 источников (CLSPB, каталоги диаграмм) выведены за пределы ядра.',
+      'Зафиксированы лицензии внешних проектов (ori-studio GPL-2.0-or-later; Origami-Geometry-Core MIT).',
+      'Уникальные источники L2 ↔ L7 вынесены в docs/RESEARCH_L2_L7_SOURCES.md.',
     ],
   },
   {
     filename: 'docs/REUSE_AND_GAP_ANALYSIS.md',
     title: 'REUSE_AND_GAP_ANALYSIS.md',
-    scope: 'Фактический аудит архива Origami-Geometry-Core (PCRS), кандидатов из PGS-2D / GIEM / SOL-Triad и ключевых пробелов.',
+    scope: 'Аудит заимствований, сопоставление подходов Float64 vs BigInt и карта открытых пробелов L1–L7.',
     keyTakeaways: [
-      'Подтверждены reflection.ts и independentVerifier.ts в PCRS для 2D при L ≤ 2.',
-      'Зафиксирован разрыв Float64 vs BigInt и отсутствие формализованного L3.',
+      'В v0.1.0 L2 и L7 реализованы заново в src/core/ под Apache-2.0.',
+      'Зафиксированы пробелы: L1 (PGS-2D), L3 (Z-order), OperationRequest и точная арифметика.',
     ],
   },
   {
     filename: 'docs/TOOL_INTEGRATION_ARCHITECTURE.md',
     title: 'TOOL_INTEGRATION_ARCHITECTURE.md',
-    scope: 'Архитектура ToolAdapter для Ori Studio, Oriedita, Rabbit Ear и OrigamiSimulator без домысливания API.',
+    scope: 'Спроектированный слой ToolAdapter (Phase 8) и фактические выводы аудитов Ori Studio Stage 1–2.',
     keyTakeaways: [
-      'Для каждого инструмента явно отделено подтверждённое от требующего проверки.',
+      'В v0.1.0 адаптеры не реализованы; oristudio-geometry не имеет прямого JS/WASM-экспорта reflect_point.',
       'Любой внешний результат помечается unverified до проверки в L7.',
     ],
   },
   {
     filename: 'docs/REPOSITORY_STRUCTURE.md',
     title: 'REPOSITORY_STRUCTURE.md',
-    scope: 'Уточнённая структура репозитория origami-mathematical-reasoning с разделением docs, research, core, layers, verifier, adapters.',
+    scope: 'Фактическая структура репозитория v0.1.0 (src/core/, tests/, docs/) и целевое дерево Phase 3+.',
     keyTakeaways: [
-      'verifier/ строго изолирован от layers/L2_geometry/.',
-      'Выделена папка tests/negative-controls/ для проверки отказа при ошибках генератора.',
+      'l7IndependentVerifier.ts строго изолирован от l2GeometryEngine.ts и trace.ts.',
+      'Чётко отделена реальная структура v0.1.0 от будущих каталогов layers/, adapters/, verifier/.',
     ],
   },
   {
     filename: 'docs/DEVELOPMENT_ROADMAP.md',
     title: 'DEVELOPMENT_ROADMAP.md',
-    scope: 'Этапы Phase 1–8 и 8 критериев базовой инженерной зрелости.',
+    scope: 'Завершённые Phase 1 и Phase 2.1 (v0.1.0), ближайший шаг Phase 2.2 и план Phase 3–8.',
     keyTakeaways: [
-      'Приоритет Phase 2 — сквозная связка L2 ↔ L7 для 2D REFLECTION.',
-      'Переход к 3D-кинематике заблокирован до стабилизации 2D-прототипа.',
+      'Contract 02 v2 реализован и проходит 13/13 автотестов в tests/contract02.test.ts.',
+      'Переход к 3D-кинематике заблокирован до стабилизации сквозного 2D MVP (Phase 3–4).',
     ],
   },
   {
     filename: 'docs/FIRST_PROTOTYPE_SPEC.md',
     title: 'FIRST_PROTOTYPE_SPEC.md',
-    scope: 'Формальная спецификация первого 2D-прототипа: единичный квадрат, FACE_SUBDIVISION и REFLECTION по x + y = 1.',
+    scope: 'Спецификация реализованного 2D-прототипа L2 ↔ L7: LineNormalParams, ReflectionWitness, r_mid/r_perp, пороги 1e-7/1e-12.',
     keyTakeaways: [
-      '5 независимых проверок в L7 и 4 обязательных тест-кейса (T-01 .. T-04).',
-      'Явный возврат CAPABILITY_GAP при запросах с 3D-углом или толщиной листа.',
+      '4-этапный конвейер L7 (PASS / FAIL / UNDETERMINED) и 5 сценариев стенда T-01..T-04, DEG.',
+      'FACE_SUBDIVISION и CAPABILITY_GAP явно отмечены как запланированные вне v0.1.0.',
     ],
   },
 ];
 
-export const REPOSITORY_TREE = `origami-mathematical-reasoning/
-├── README.md
-├── ARCHITECTURE.md
-├── DEVELOPMENT_STATUS.md
-├── docs/              (concept · architecture · contracts · tool-integration)
-├── sources/           (SOURCE_REGISTRY.md · REUSE_AND_GAP_ANALYSIS.md)
-├── research/          (RESEARCH_BASE.md · OPEN_QUESTIONS.md · reports/)
-├── core/              (state · transformations · trace · errors)
-├── layers/            (L1_topology ... L6_optimization)
-├── contracts/         (машинно-проверяемые схемы L1↔L2, L2↔L7)
-├── verifier/          (L7: result/ · process/ · tolerances/)
-├── adapters/          (common · rabbit-ear · ori-studio · oriedita · origami-simulator)
-├── reasoning-skill/   (инструкции и интерфейс агента)
-├── datasets/          (ETH 1-DOF · задачи Фудзимото)
-├── experiments/       (square_reflection MVP)
-├── tests/             (mathematical · negative-controls · integration · regression)
-└── roadmap/           (Phase 1–8 gates)`;
+export const REPOSITORY_TREE = `Origami-mathematical-reasoning/   (v0.1.0 · Apache-2.0)
+├── README.md · LICENSE · CHANGELOG.md · CONTRIBUTING.md · RELEASE_NOTES.md
+├── package.json · package-lock.json · tsconfig.json · vite.config.ts
+├── docs/              (PROJECT_README · ARCHITECTURE · FIRST_PROTOTYPE_SPEC · ...)
+├── src/
+│   ├── core/          (types.ts · trace.ts · l2GeometryEngine.ts · l7IndependentVerifier.ts)
+│   ├── components/    (VerificationWorkbench.tsx)
+│   ├── data/          (passportData.ts)
+│   └── App.tsx · main.tsx · index.css
+├── tests/
+│   └── contract02.test.ts  (13 автотестов L2 ↔ L7)
+└── [Отчёты в корне]   (PHASE_2_1 · ORI_STUDIO_* · RELEASE_READINESS_AUDIT · TASK_A/B)`;

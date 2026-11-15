@@ -1,78 +1,78 @@
-# Repository Structure — Структура репозитория `origami-mathematical-reasoning`
+# Repository Structure — Структура репозитория `Origami-mathematical-reasoning`
 
-Уточнённая модульная структура накопительного исследовательско-инженерного репозитория, исключающая смешивание концепций, спецификаций, вычислительного кода, тестов и результатов экспериментов.
+В этом документе чётко разделены **фактическая структура релиза `v0.1.0`** и **целевая модульная структура** для последующих фаз развития (`Phase 3+`).
 
 ---
 
-## Дерево каталогов
+## 1. Фактическая структура репозитория (`v0.1.0`)
 
 ```text
-origami-mathematical-reasoning/
-├── README.md                          # Навигатор проекта и статус зрелости
-├── ARCHITECTURE.md                    # Сводная архитектура L1–L7 и границы контуров
-├── DEVELOPMENT_STATUS.md              # Актуальная карта зрелости (не процент кода)
+Origami-mathematical-reasoning/
+├── README.md                              # Корневой обзор OMR v0.1.0, команды и границы релиза
+├── LICENSE                                # Apache License 2.0
+├── CHANGELOG.md                           # История изменений по версиям (Keep a Changelog)
+├── CONTRIBUTING.md                        # Правила изоляции L7, лицензирования и тестирования
+├── RELEASE_NOTES.md                       # Состав и ограничения релиза v0.1.0
+├── package.json                           # Пакет origami-mathematical-reasoning@0.1.0 (private: true)
+├── package-lock.json                      # Воспроизводимый lock-файл для npm ci
+├── tsconfig.json                          # Конфигурация TypeScript
+├── vite.config.ts                         # Конфигурация Vite + React + Tailwind v4
+├── index.html                             # HTML-точка входа веб-стенда OMR v0.1.0
+├── metadata.json                          # Метаданные проекта (Origami Mathematical Reasoning (OMR))
+├── .env.example                           # Зафиксировано отсутствие обязательных API-ключей
+├── .gitignore
 │
-├── docs/                              # Зафиксированные спецификации и аудиты
-│   ├── concept/                       # Идеология, Goal-Oriented Verification, Modular Identity
-│   ├── architecture/                  # Модели STATE, TRANSFORMATION, TRACE, Verification
-│   ├── contracts/                     # Формальные контракты (CONTRACT_01_L1_L2, CONTRACT_02_L2_L7)
-│   └── tool-integration/              # Архитектура адаптеров внешних программ
+├── src/
+│   ├── core/                              # Математическое ядро Phase 2.1 (SPDX: Apache-2.0)
+│   │   ├── types.ts                       # Чистые типы Contract 02 v2 (без рантайм-кода)
+│   │   ├── trace.ts                       # Иммутабельный журнал TRACE и deepFreeze
+│   │   ├── l2GeometryEngine.ts            # L2: 2D-отражение + выпуск ReflectionWitness
+│   │   └── l7IndependentVerifier.ts       # L7: изолированный аксиоматический верификатор (r_mid, r_perp)
+│   ├── components/
+│   │   └── VerificationWorkbench.tsx      # Интерактивный стенд L2 → ReflectionWitness → TRACE → L7
+│   ├── data/
+│   │   └── passportData.ts                # Структурированные данные паспорта архитектуры и реестра
+│   ├── App.tsx                            # Корневой интерфейс паспорта OMR и стенда
+│   ├── main.tsx                           # Точка монтирования React
+│   └── index.css                          # Глобальные стили Tailwind CSS v4
 │
-├── sources/                           # Реестр источников (29/58) и аудиты заимствований
-│   ├── SOURCE_REGISTRY.md             # Полный каталог литературы, стендов и симуляторов
-│   ├── REUSE_AND_GAP_ANALYSIS.md      # Аудит PCRS, PGS-2D, GIEM, Fedorov, SOL-Triad
-│   └── bibliometrics/                 # Ссылки на PDF и DOI датасетов
+├── tests/
+│   └── contract02.test.ts                 # 13 автотестов Contract 02 v2 (node:test + tsx)
 │
-├── research/                          # Математические исследования и открытые вопросы
-│   ├── RESEARCH_BASE.md               # Дисциплина доказательств и допуски
-│   ├── OPEN_QUESTIONS.md              # Float64 vs BigInt, коллизии γ(t), порядок слоёв L3
-│   └── reports/                       # Research Report 01–04, заметки по PAT-30
+├── docs/                                  # Актуальная проектная и исследовательская документация
+│   ├── PROJECT_README.md
+│   ├── ARCHITECTURE.md
+│   ├── FIRST_PROTOTYPE_SPEC.md
+│   ├── DEVELOPMENT_ROADMAP.md
+│   ├── REPOSITORY_STRUCTURE.md
+│   ├── TOOL_INTEGRATION_ARCHITECTURE.md
+│   ├── RESEARCH_BASE.md
+│   ├── SOURCE_REGISTRY.md
+│   ├── REUSE_AND_GAP_ANALYSIS.md
+│   ├── RESEARCH_L2_L7_SOURCES.md
+│   └── MODULAR_MATHEMATICAL_IDENTITY.md
 │
-├── core/                              # Независимые от слоя базовые примитивы
-│   ├── state/                         # Типизированное CanonicalGeometryState (Object.freeze)
-│   ├── transformations/               # Базовые интерфейсы TRANSFORMATION и предусловия
-│   ├── trace/                         # Схема журнала TRACE и сериализация переходов
-│   └── errors/                        # Семантические коды (CAPABILITY_GAP, INVALID_INPUT)
-│
-├── layers/                            # Изолированные вычислительные уровни (L1–L7)
-│   ├── L1_topology/                   # Графы смежности, VertexID/EdgeID/FaceID, FACE_SUBDIVISION
-│   ├── L2_geometry/                   # Евклидова геометрия, REFLECTION, BIND_GEOMETRY
-│   ├── L3_layer_order/                # [CONCEPT] Разрешение Z-порядка перекрытий
-│   ├── L4_kinematics/                 # [CONCEPT] Непрерывные траектории γ(t)
-│   ├── L5_curved_folding/             # [RESEARCH] Криволинейные складки
-│   └── L6_optimization/               # [RESEARCH] Эвристический поиск и ранжирование
-│
-├── contracts/                         # Машинно-проверяемые JSON/TS схемы контрактов Lᵢ ↔ Lⱼ
-│
-├── verifier/                          # L7 — Изолированный Zero-Trust верификатор (без общих утилит с L2!)
-│   ├── result/                        # Result Verification (инварианты конечного состояния)
-│   ├── process/                       # Process Verification (проверка переходов TRACE)
-│   └── tolerances/                    # Калиброванные границы допусков (L ≤ 2 и т.д.)
-│
-├── adapters/                          # Tool Integration Layer (без предположений о несуществующих API)
-│   ├── common/                        # Единый контракт ToolAdapter и FOLD-маппинг
-│   ├── rabbit-ear/                    # Планируемый адаптер FOLD / fold-validator
-│   ├── ori-studio/                    # Исследование WASM/Rust-интерфейса
-│   ├── oriedita/                      # Исследование CLI/экспорта .ori/.cp
-│   └── origami-simulator/             # Исследование headless-выгрузки 3D
-│
-├── reasoning-skill/                   # Интерфейс и правила работы AI-агента (без права выносить PASS)
-│
-├── datasets/                          # Эталонные тесты (выборки ETH Crease Pattern, задачи Фудзимото)
-├── experiments/                       # Воспроизводимые протоколы (вкл. square_reflection MVP)
-├── tests/                             # Автоматические наборы проверок
-│   ├── mathematical/                  # Инварианты и аналитические тождества
-│   ├── negative-controls/             # Намеренные ошибки генератора (проверка обнаружения FAIL)
-│   ├── integration/                   # Тесты контрактов L1 ↔ L2 и L2 ↔ L7
-│   └── regression/                    # Регрессионные сценарии (перенос из PCRS seq001–003)
-│
-└── roadmap/                           # Планы фаз и критерии перехода между этапами
+└── [Исторические отчёты и аудиты в корне]
+    ├── PHASE_2_1_IMPLEMENTATION_REPORT.md # Реализация Phase 2.1 (актуальная основа кода v0.1.0)
+    ├── RESEARCH_INTEGRATION_V1.md         # Отчёт об интеграции исследовательской базы
+    ├── ORI_STUDIO_INITIAL_AUDIT.md        # Stage 1 аудит внешнего репозитория Ori Studio
+    ├── ORI_STUDIO_GEOMETRY_ENGINE_REPORT.md # Stage 2 аудит крейта oristudio-geometry
+    ├── RELEASE_READINESS_AUDIT_V1.md      # Аудит готовности к релизу v0.1.0
+    ├── RELEASE_PREPARATION_TASK_A_REPORT.md # Отчёт по Task A (очистка и воспроизводимость)
+    ├── RELEASE_PREPARATION_TASK_B_REPORT.md # Отчёт по Task B (документация и идентичность)
+    ├── ACCEPTANCE_AUDIT_V1.md             # [SUPERSEDED] Аудит раннего прототипа до Phase 2.1
+    └── PHASE_2_IMPLEMENTATION_REPORT.md   # [SUPERSEDED] Отчёт о 3×3 матрице, заменённой в Phase 2.1
 ```
 
 ---
 
-## Ключевые правила структуры
+## 2. Целевая архитектура модулей (запланировано на `Phase 3+`, не создано в `v0.1.0`)
 
-1. **`verifier/` изолирован от `layers/L2_geometry/`:** верификатор реализует собственные метрики (площадь по Гауссу, расстояния, проверку оси) во избежание общих багов с генератором.
-2. **`research/` и `docs/` отделены от `core/` и `layers/`:** гипотезы и открытые вопросы не смешиваются с работающим кодом.
-3. **`tests/negative-controls/` обязательны:** каждый новый оператор принимается только при наличии теста, в котором искусственно искажённый вывод генератора гарантированно получает вердикт `FAIL`.
+По мере добавления слоёв `L1`, `L3–L6`, адаптеров внешних программ и `AI Skill` код из `src/core/` будет масштабироваться с сохранением следующих границ:
+
+- **`layers/`** (`L1_topology/`, `L2_geometry/`, `L3_layer_order/`, `L4_kinematics/`, `L5_curved_folding/`, `L6_optimization/`) — изолированные вычислительные уровни, взаимодействующие только через типизированные контракты.
+- **`contracts/`** — формальные схемы межмодульных контрактов (`Contract 01 L1↔L2`, `Contract 02 L2↔L7` и далее).
+- **`verifier/`** (`L7`) — верификатор остаётся **строго изолированным от `L2` и прочих генераторов** (собственная реализация метрик, запрет общих решателей).
+- **`adapters/`** (`common/`, `ori-studio/`, `oriedita/`, `rabbit-ear/`, `origami-simulator/`) — слой `Tool Integration Layer`, все внешние ответы которого проходят Zero-Trust проверку в `L7`.
+- **`reasoning-skill/`** — переносимые инструкции и интерфейс ИИ-агента.
+- **`tests/`** — обязательное наличие негативных контролей (`FAIL` при намеренных ошибках генератора) для каждого нового оператора.
