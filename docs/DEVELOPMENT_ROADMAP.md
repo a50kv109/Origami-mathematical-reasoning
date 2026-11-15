@@ -1,7 +1,7 @@
 # Development Roadmap — План разработки Origami Mathematical Reasoning (OMR)
 
-**Текущий этап (`v0.1.0`):** **Phase 1** (архитектура и аудит) и **Phase 2.1** (`Contract 02 v2: L2 ↔ L7` для 2D `REFLECTION_ACROSS_LINE`) **реализованы и верифицированы** (`npm test`: 13/13 PASS, `npm run lint`: 0 ошибок, `npm run build`: PASS).  
-**Ближайший фокус:** **Phase 2.2** (устранение архитектурных и инженерных пробелов контракта) и **Phase 3** (`Contract 01: L1 ↔ L2`).  
+**Текущий этап:** **Phase 1** (архитектура и аудит), **Phase 2.1** и **Phase 2.2** (`OperationRequest` & `Contract 02 v2` Hardening для 2D `REFLECTION_ACROSS_LINE`) **реализованы и верифицированы** (`npm test`: 19/19 PASS, `npm run lint`: 0 ошибок при `"strict": true`, `npm run build`: PASS без предупреждений `__dirname`).  
+**Ближайший фокус:** **Phase 3** (`Contract 01: L1 ↔ L2`) и дальнейшая формализация `CAPABILITY_GAP`.  
 **Стратегическое ограничение:** не переходить к сложной 3D-кинематике (`L4`) и криволинейным складкам (`L5`) до завершения сквозного 2D MVP (`L1 ↔ L2 ↔ L7`).
 
 ---
@@ -12,8 +12,8 @@
 | :--- | :--- | :--- | :--- |
 | **Phase 1** | Mathematical Foundation | Фиксация архитектуры `L1–L7`, базовых понятий (`STATE`, `TRANSFORMATION`, `TRACE`), дисциплины доказательств и аудита 29/58 источников | **Завершено** |
 | **Phase 2.1** | `L2 ↔ L7` · Contract 02 v2 | `GeometryState`, `LineNormalParams`, `reflectAcrossLine` (IEEE-754 без `.toFixed`), `ReflectionWitness`, замороженный `TRACE`, аксиоматический `L7` (`r_mid`, `r_perp`), 13 автотестов и стенд `VerificationWorkbench` | **Реализовано (`v0.1.0`)** |
-| **Phase 2.2** | Contract 02 Hardening | Выделение доверенного `OperationRequest` в `VerificationClaim`, строгая проверка `Number.isFinite(stepIndex)` в `verifyProcess`, включение `"strict": true` в `tsconfig.json`, устранение предупреждения `__dirname` в `vite.config.ts`, формализация `CAPABILITY_GAP` и дополнительных негативных/многошаговых тестов | **Запланировано (следующий шаг)** |
-| **Phase 3** | `L1 ↔ L2` · Contract 01 | Реализация топологического слоя `L1` с опорой на `PGS-2D` (`Polygon(n)`, `portableId != localId`, `FACE_SUBDIVISION`) | **Запланировано** |
+| **Phase 2.2** | `OperationRequest` & Contract 02 Hardening | Отдельный доверенный `OperationRequest` (`src/core/operationRequest.ts`), привязка L2 и L7 (`requestBound`) против согласованных подмен, строгая проверка `Number.isFinite(stepIndex)` и последовательности запросов в `verifyProcess`, `"strict": true` в `tsconfig.json`, ESM `__dirname` в `vite.config.ts`, 19 автотестов | **Реализовано (`Phase 2.2`; `CAPABILITY_GAP` отложен)** |
+| **Phase 3** | `L1 ↔ L2` · Contract 01 | Реализация топологического слоя `L1` с опорой на `PGS-2D` (`Polygon(n)`, `portableId != localId`, `FACE_SUBDIVISION`), формализация `CAPABILITY_GAP` | **Запланировано (следующий шаг)** |
 | **Phase 4** | Integrated 2D MVP | Сквозной цикл: `Квадрат → Подразделение → Отражение → TRACE → Независимая проверка L7 → Решение`, опционально — криптографическая привязка `TRACE` (JCS + SHA-256) | **Запланировано** |
 | **Phase 5** | `L3 / L4` · Layer Order & Kinematics | Локальный Z-порядок (`LAYER_ORDER_RESOLUTION`) и кинематические траектории `γ(t)` с опорой на аудит `oristudio-layer-order` и `3D-Stand-v2` | **Запланировано** |
 | **Phase 6** | `L6` · Optimization | Поиск и ранжирование альтернативных последовательностей с обязательной пост-верификацией в `L7` | **Запланировано** |

@@ -2,32 +2,35 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * L7 — Axiomatic Certifying Zero-Trust Geometric Verifier (Contract 02 v2)
+ * L7 — Axiomatic Certifying Zero-Trust Geometric Verifier (Contract 02 v2 · Phase 2.2 Hardened)
  *
  * CRITICAL ISOLATION RULE:
- * This module MUST NOT import any runtime functions or geometry helpers from L2 or TRACE.
+ * This module MUST NOT import any runtime functions or geometry helpers from L2, TRACE, or OperationRequest factories.
  * Only pure TypeScript contract types (`import type ... from './types'`) are permitted.
  *
- * Independent Mathematical Model (Certifying Algorithms Paradigm):
- * Rather than re-running L2's projection or building a duplicate 3x3 reflection matrix solver,
- * L7 verifies the ReflectionWitness emitted by L2 in four strictly ordered stages:
+ * Independent Mathematical Model (Certifying Algorithms Paradigm + Trusted Request Binding):
+ * L7 verifies both:
+ *   1. Mathematical validity of the resulting geometry via scale-normalized reflection axioms and metric invariants.
+ *   2. Strict correspondence to the separate, trusted OperationRequest (detecting coordinated substitution of claim + witness).
+ *
+ * Verification Stages:
  *   Stage A: Input admissibility validation (finite IEEE-754 numbers, ||n|| > zeroNormalEpsilon -> else UNDETERMINED)
- *   Stage B: Three-way witness binding (witness <-> claim <-> sourceState <-> resultingState, disjoint partition, fixed immobility)
- *   Stage C: Scale-invariant geometric axioms of reflection:
+ *   Stage B: Trusted OperationRequest binding & three-way witness binding (request <-> claim <-> witness <-> states)
+ *   Stage C: Reflection axioms evaluated against both the trusted request axis and claim axis:
  *              r_mid  = |n · (p + p') - 2c| / (2 ||n||) <= epsilon
  *              r_perp = |(p' - p) × n| / ||n|| <= epsilon
- *            (By exact identity ||p' - p'_exact||_2 = sqrt(4*r_mid^2 + r_perp^2), these axioms are
- *             mathematically necessary and sufficient without re-executing any solver.)
  *   Stage D: Scope-aware metric invariants (purely moving & purely fixed edges/faces preserve lengths & |area|;
  *            non-degenerate purely moving faces strictly invert signed orientation; boundary/mixed elements excluded).
  *
- * Under Zero-Trust, L7 completely ignores witness.claimedResiduals.
+ * Under Zero-Trust, L7 completely ignores witness.claimedResiduals and never trusts claim/witness as the task authority.
  */
 
 import type {
   Edge2D,
   Face2D,
   GeometryState,
+  LineNormalParams,
+  OperationRequest,
   Point2D,
   ReflectionWitnessVertexPair,
   TraceEntry,
@@ -96,8 +99,12 @@ function zeroResiduals(): VerificationResiduals {
   };
 }
 
-function undeterminedPredicates(traceContinuous: boolean): VerificationPredicates {
+function defaultFalsePredicates(
+  traceContinuous: boolean,
+  requestBound = false
+): VerificationPredicates {
   return {
+    requestBound,
     witnessBound: false,
     axiomsSatisfied: false,
     lengthsPreserved: false,
@@ -180,6 +187,17 @@ function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
   return true;
 }
 
+function stringArraysIdentical(
+  a: readonly string[],
+  b: readonly string[]
+): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 function edgesMatch(
   a: readonly Edge2D[],
   b: readonly Edge2D[]
@@ -234,34 +252,96 @@ function statesStructurallyIdentical(
   return edgesMatch(a.edges, b.edges) && facesMatch(a.faces, b.faces);
 }
 
+function requestsStructurallyIdentical(
+  a: OperationRequest,
+  b: OperationRequest
+): boolean {
+  return (
+    a.operationRequestId === b.operationRequestId &&
+    a.operation === b.operation &&
+    a.sourceStateId === b.sourceStateId &&
+    a.sourceStateVersion === b.sourceStateVersion &&
+    a.requestProvenance === b.requestProvenance &&
+    a.parameters.line.nx === b.parameters.line.nx &&
+    a.parameters.line.ny === b.parameters.line.ny &&
+    a.parameters.line.c === b.parameters.line.c &&
+    stringArraysIdentical(a.movingVertexIds, b.movingVertexIds) &&
+    stringArraysIdentical(a.fixedVertexIds, b.fixedVertexIds) &&
+    stringArraysIdentical(
+      a.parameters.movingVertexIds,
+      b.parameters.movingVertexIds
+    ) &&
+    stringArraysIdentical(
+      a.parameters.fixedVertexIds,
+      b.parameters.fixedVertexIds
+    )
+  );
+}
+
 /**
- * Mode 1: RESULT VERIFICATION (Certifying Witness + Axiomatic Verification)
- * Independently validates a claimed transformation result via its ReflectionWitness.
+ * Mode 1: RESULT VERIFICATION (Trusted OperationRequest + Certifying Witness + Axiomatic Verification)
+ * Independently validates both mathematical correctness and strict adherence to the separate OperationRequest.
  */
 export function verifyResult(
   claim: VerificationClaim,
+  request: OperationRequest,
   toleranceOverrides?: Partial<VerifierTolerances>
 ): VerificationVerdict {
   const tol = resolveTolerances(toleranceOverrides);
   const diagnostics: string[] = [];
 
-  const { line, movingVertexIds, fixedVertexIds } = claim.parameters;
-  const witness = claim.witness;
+  if (!request || typeof request !== 'object') {
+    diagnostics.push(
+      'REQUEST_MISSING: verifyResult requires a separate trusted OperationRequest'
+    );
+    return {
+      status: 'FAIL',
+      mode: 'RESULT_VERIFICATION',
+      residuals: zeroResiduals(),
+      predicates: defaultFalsePredicates(true, false),
+      diagnostics,
+    };
+  }
 
-  // =========================================================================
-  // STAGE A: Input Admissibility Validation (non-finite or ||n|| <= epsZero -> UNDETERMINED)
-  // =========================================================================
+  if (!claim || typeof claim !== 'object') {
+    diagnostics.push('CLAIM_MISSING: VerificationClaim is required');
+    return {
+      status: 'FAIL',
+      mode: 'RESULT_VERIFICATION',
+      residuals: zeroResiduals(),
+      predicates: defaultFalsePredicates(true, false),
+      diagnostics,
+    };
+  }
+
+  const witness = claim.witness;
   if (!witness || typeof witness !== 'object') {
     diagnostics.push('WITNESS_MISSING: VerificationClaim must provide a ReflectionWitness');
     return {
       status: 'FAIL',
       mode: 'RESULT_VERIFICATION',
       residuals: zeroResiduals(),
-      predicates: undeterminedPredicates(true),
+      predicates: defaultFalsePredicates(true, false),
       diagnostics,
     };
   }
 
+  const line = claim.parameters?.line;
+  const reqLine = request.parameters?.line;
+  if (!line || !reqLine) {
+    diagnostics.push('AXIS_PARAMETERS_MISSING: line parameters missing in claim or request');
+    return {
+      status: 'FAIL',
+      mode: 'RESULT_VERIFICATION',
+      residuals: zeroResiduals(),
+      predicates: defaultFalsePredicates(true, false),
+      diagnostics,
+    };
+  }
+
+  // =========================================================================
+  // STAGE A: Input Admissibility Validation (non-finite or ||n|| <= epsZero -> UNDETERMINED)
+  // =========================================================================
   const src = buildVertexMap(claim.sourceState);
   const dst = buildVertexMap(claim.resultingState);
 
@@ -286,70 +366,121 @@ export function verifyResult(
     }
   }
 
+  const requestHasInvalidNumber =
+    !isFiniteNumber(request.sourceStateVersion) ||
+    !isFiniteNumber(reqLine.nx) ||
+    !isFiniteNumber(reqLine.ny) ||
+    !isFiniteNumber(reqLine.c);
+
   if (
     !isFiniteNumber(line.nx) ||
     !isFiniteNumber(line.ny) ||
     !isFiniteNumber(line.c) ||
     src.hasInvalidNumber ||
     dst.hasInvalidNumber ||
-    witnessHasInvalidNumber
+    witnessHasInvalidNumber ||
+    requestHasInvalidNumber
   ) {
     diagnostics.push(
-      'UNDETERMINED: numeric inputs (axis, state version, vertex coordinates, or witness pairs) contain non-finite IEEE-754 values'
+      'UNDETERMINED: numeric inputs (request, axis, state version, vertex coordinates, or witness pairs) contain non-finite IEEE-754 values'
     );
     return {
       status: 'UNDETERMINED',
       mode: 'RESULT_VERIFICATION',
       residuals: zeroResiduals(),
-      predicates: undeterminedPredicates(true),
+      predicates: defaultFalsePredicates(true, false),
       diagnostics,
     };
   }
 
+  const normRequest = Math.hypot(reqLine.nx, reqLine.ny);
   const normClaim = Math.hypot(line.nx, line.ny);
   const normWitness = Math.hypot(witness.axis.n.nx, witness.axis.n.ny);
   if (
+    !isFiniteNumber(normRequest) ||
+    normRequest <= tol.zeroNormalEpsilon ||
     !isFiniteNumber(normClaim) ||
     normClaim <= tol.zeroNormalEpsilon ||
     !isFiniteNumber(normWitness) ||
     normWitness <= tol.zeroNormalEpsilon
   ) {
     diagnostics.push(
-      `UNDETERMINED: degenerate axis normal (claim ||n||=${normClaim}, witness ||n||=${normWitness}, epsZero=${tol.zeroNormalEpsilon})`
+      `UNDETERMINED: degenerate axis normal (request ||n||=${normRequest}, claim ||n||=${normClaim}, witness ||n||=${normWitness}, epsZero=${tol.zeroNormalEpsilon})`
     );
     return {
       status: 'UNDETERMINED',
       mode: 'RESULT_VERIFICATION',
       residuals: zeroResiduals(),
-      predicates: undeterminedPredicates(true),
+      predicates: defaultFalsePredicates(true, false),
       diagnostics,
     };
   }
 
   // =========================================================================
-  // STAGE B: Three-Way Witness Binding (witness <-> claim <-> sourceState <-> resultingState)
+  // STAGE B: Trusted OperationRequest Binding & Three-Way Witness Binding
   // Note: witness.claimedResiduals is intentionally ignored (Zero-Trust).
   // =========================================================================
+  let requestBound = true;
   let witnessBound = true;
+
+  if (
+    typeof request.operationRequestId !== 'string' ||
+    request.operationRequestId.trim().length === 0 ||
+    typeof request.requestProvenance !== 'string' ||
+    request.requestProvenance.trim().length === 0 ||
+    typeof request.sourceStateId !== 'string' ||
+    request.sourceStateId.trim().length === 0
+  ) {
+    requestBound = false;
+    diagnostics.push(
+      'REQUEST_METADATA_INVALID: missing operationRequestId, sourceStateId, or requestProvenance'
+    );
+  }
+
+  if (request.operation !== 'REFLECTION_ACROSS_LINE') {
+    requestBound = false;
+    diagnostics.push(
+      `REQUEST_OPERATION_UNSUPPORTED: request.operation=${String(request.operation)}`
+    );
+  }
 
   if (
     claim.operation !== 'REFLECTION_ACROSS_LINE' ||
     witness.operation !== 'REFLECTION_ACROSS_LINE'
   ) {
     witnessBound = false;
+    requestBound = false;
     diagnostics.push(
-      `OPERATION_MISMATCH: claim=${claim.operation}, witness=${witness.operation}`
+      `OPERATION_MISMATCH: request=${request.operation}, claim=${claim.operation}, witness=${witness.operation}`
     );
+  }
+
+  if (claim.operation !== request.operation || witness.operation !== request.operation) {
+    requestBound = false;
+    witnessBound = false;
   }
 
   if (
     typeof witness.witnessId !== 'string' ||
     witness.witnessId.length === 0 ||
     typeof witness.operationId !== 'string' ||
-    witness.operationId.length === 0
+    witness.operationId.length === 0 ||
+    typeof witness.operationRequestId !== 'string' ||
+    witness.operationRequestId.length === 0
   ) {
     witnessBound = false;
-    diagnostics.push('WITNESS_METADATA_INVALID: missing witnessId or operationId');
+    requestBound = false;
+    diagnostics.push(
+      'WITNESS_METADATA_INVALID: missing witnessId, operationId, or operationRequestId'
+    );
+  }
+
+  if (witness.operationRequestId !== request.operationRequestId) {
+    requestBound = false;
+    witnessBound = false;
+    diagnostics.push(
+      `REQUEST_ID_MISMATCH: witness.operationRequestId="${witness.operationRequestId}" vs request.operationRequestId="${request.operationRequestId}"`
+    );
   }
 
   if (
@@ -360,8 +491,30 @@ export function verifyResult(
     claim.sourceState.stateId === claim.resultingState.stateId
   ) {
     witnessBound = false;
+    requestBound = false;
     diagnostics.push(
       `STATE_ID_INVALID: sourceState.stateId="${claim.sourceState.stateId}", resultingState.stateId="${claim.resultingState.stateId}"`
+    );
+  }
+
+  if (
+    claim.sourceState.stateId !== request.sourceStateId ||
+    claim.sourceState.version !== request.sourceStateVersion
+  ) {
+    requestBound = false;
+    diagnostics.push(
+      `REQUEST_SOURCE_STATE_MISMATCH: request(${request.sourceStateId}@v${request.sourceStateVersion}) vs sourceState(${claim.sourceState.stateId}@v${claim.sourceState.version})`
+    );
+  }
+
+  if (
+    witness.sourceStateId !== request.sourceStateId ||
+    witness.sourceStateVersion !== request.sourceStateVersion
+  ) {
+    requestBound = false;
+    witnessBound = false;
+    diagnostics.push(
+      `REQUEST_WITNESS_SOURCE_MISMATCH: witness(${witness.sourceStateId}@v${witness.sourceStateVersion}) vs request(${request.sourceStateId}@v${request.sourceStateVersion})`
     );
   }
 
@@ -375,6 +528,20 @@ export function verifyResult(
     witnessBound = false;
     diagnostics.push(
       `WITNESS_STATE_BINDING_FAILED: witness(${witness.sourceStateId}@v${witness.sourceStateVersion} -> ${witness.targetStateId}@v${witness.targetStateVersion}) vs states(${claim.sourceState.stateId}@v${claim.sourceState.version} -> ${claim.resultingState.stateId}@v${claim.resultingState.version})`
+    );
+  }
+
+  if (
+    line.nx !== reqLine.nx ||
+    line.ny !== reqLine.ny ||
+    line.c !== reqLine.c ||
+    witness.axis.n.nx !== reqLine.nx ||
+    witness.axis.n.ny !== reqLine.ny ||
+    witness.axis.c !== reqLine.c
+  ) {
+    requestBound = false;
+    diagnostics.push(
+      `REQUEST_AXIS_MISMATCH: request axis=(${reqLine.nx}, ${reqLine.ny}, c=${reqLine.c}), claim axis=(${line.nx}, ${line.ny}, c=${line.c}), witness axis=(${witness.axis.n.nx}, ${witness.axis.n.ny}, c=${witness.axis.c})`
     );
   }
 
@@ -423,13 +590,21 @@ export function verifyResult(
     }
   }
 
-  // Exact disjoint partition check across claim parameters and witness
-  const claimMoving = collectIdSet(movingVertexIds);
-  const claimFixed = collectIdSet(fixedVertexIds);
+  // Exact disjoint partition check across request, claim.parameters, and witness
+  const reqMoving = collectIdSet(request.movingVertexIds);
+  const reqFixed = collectIdSet(request.fixedVertexIds);
+  const reqParamMoving = collectIdSet(request.parameters.movingVertexIds);
+  const reqParamFixed = collectIdSet(request.parameters.fixedVertexIds);
+  const claimMoving = collectIdSet(claim.parameters.movingVertexIds);
+  const claimFixed = collectIdSet(claim.parameters.fixedVertexIds);
   const witnessMoving = collectIdSet(witness.movingVertexIds);
   const witnessFixed = collectIdSet(witness.fixedVertexIds);
 
   if (
+    reqMoving.hasDuplicates ||
+    reqFixed.hasDuplicates ||
+    reqParamMoving.hasDuplicates ||
+    reqParamFixed.hasDuplicates ||
     claimMoving.hasDuplicates ||
     claimFixed.hasDuplicates ||
     witnessMoving.hasDuplicates ||
@@ -437,7 +612,34 @@ export function verifyResult(
   ) {
     idsPreserved = false;
     witnessBound = false;
-    diagnostics.push('DUPLICATE_PARTITION_ID: movingVertexIds or fixedVertexIds contains duplicates');
+    requestBound = false;
+    diagnostics.push(
+      'DUPLICATE_PARTITION_ID: movingVertexIds or fixedVertexIds contains duplicates'
+    );
+  }
+
+  if (
+    !setsEqual(reqMoving.set, reqParamMoving.set) ||
+    !setsEqual(reqFixed.set, reqParamFixed.set)
+  ) {
+    requestBound = false;
+    idsPreserved = false;
+    diagnostics.push(
+      'REQUEST_INTERNAL_PARTITION_MISMATCH: OperationRequest top-level partition differs from request.parameters'
+    );
+  }
+
+  if (
+    !setsEqual(claimMoving.set, reqMoving.set) ||
+    !setsEqual(claimFixed.set, reqFixed.set) ||
+    !setsEqual(witnessMoving.set, reqMoving.set) ||
+    !setsEqual(witnessFixed.set, reqFixed.set)
+  ) {
+    requestBound = false;
+    idsPreserved = false;
+    diagnostics.push(
+      'REQUEST_PARTITION_MISMATCH: claim or witness moving/fixed vertex lists differ from OperationRequest'
+    );
   }
 
   if (
@@ -446,25 +648,30 @@ export function verifyResult(
   ) {
     witnessBound = false;
     idsPreserved = false;
-    diagnostics.push('WITNESS_PARTITION_MISMATCH: witness moving/fixed vertex lists differ from claim.parameters');
+    diagnostics.push(
+      'WITNESS_PARTITION_MISMATCH: witness moving/fixed vertex lists differ from claim.parameters'
+    );
   }
 
-  for (const id of claimMoving.set) {
-    if (!src.map.has(id) || claimFixed.set.has(id)) {
+  for (const id of reqMoving.set) {
+    if (!src.map.has(id) || reqFixed.set.has(id)) {
       idsPreserved = false;
       witnessBound = false;
+      requestBound = false;
     }
   }
-  for (const id of claimFixed.set) {
+  for (const id of reqFixed.set) {
     if (!src.map.has(id)) {
       idsPreserved = false;
       witnessBound = false;
+      requestBound = false;
     }
   }
   for (const id of src.map.keys()) {
-    if (!claimMoving.set.has(id) && !claimFixed.set.has(id)) {
+    if (!reqMoving.set.has(id) && !reqFixed.set.has(id)) {
       idsPreserved = false;
       witnessBound = false;
+      requestBound = false;
     }
   }
 
@@ -484,10 +691,7 @@ export function verifyResult(
     pairMap.set(pair.vertexId, pair);
   }
 
-  if (
-    duplicatePairIds ||
-    pairMap.size !== witnessMoving.set.size
-  ) {
+  if (duplicatePairIds || pairMap.size !== witnessMoving.set.size) {
     witnessBound = false;
     diagnostics.push(
       `WITNESS_PAIRS_CARDINALITY_MISMATCH: vertexPairs=${witness.vertexPairs.length}, distinct=${pairMap.size}, moving=${witnessMoving.set.size}`
@@ -509,7 +713,9 @@ export function verifyResult(
     const dstPos = dst.map.get(id);
     if (!pair || !srcPos || !dstPos) {
       witnessBound = false;
-      diagnostics.push(`WITNESS_MISSING_PAIR: missing vertexPair or state entry for ${id}`);
+      diagnostics.push(
+        `WITNESS_MISSING_PAIR: missing vertexPair or state entry for ${id}`
+      );
       continue;
     }
     if (pair.p.x !== srcPos.x || pair.p.y !== srcPos.y) {
@@ -527,10 +733,10 @@ export function verifyResult(
     }
   }
 
-  // Fixed vertices immobility check
+  // Fixed vertices immobility check (against trusted request fixed partition)
   let maxFixedDisplacement = 0;
   for (const id of src.map.keys()) {
-    if (claimMoving.set.has(id)) continue;
+    if (reqMoving.set.has(id)) continue;
     const p = src.map.get(id);
     const pClaimed = dst.map.get(id);
     if (!p || !pClaimed) continue;
@@ -548,33 +754,51 @@ export function verifyResult(
   }
 
   // =========================================================================
-  // STAGE C: Scale-Invariant Geometric Axioms of Reflection (No Solver Re-run)
+  // STAGE C: Geometric Axioms of Reflection Evaluated Against Request & Claim Axes
   //   r_mid  = |n · (p + p') - 2c| / (2 ||n||) <= epsilon
   //   r_perp = |(p' - p) × n| / ||n|| <= epsilon
+  // Evaluating against BOTH reqLine and claim line ensures coordinated axis substitution
+  // fails axiomsSatisfied against the requested axis while single-side claim tampering
+  // also fails axiomsSatisfied.
   // =========================================================================
   let midpointError = 0;
   let collinearityError = 0;
 
-  const evalAxiomResiduals = (p: Point2D, pPrime: Point2D) => {
+  const evalAxiomResidualsForLine = (
+    p: Point2D,
+    pPrime: Point2D,
+    axisLine: LineNormalParams,
+    axisNorm: number
+  ) => {
     const midRes =
-      Math.abs(line.nx * (p.x + pPrime.x) + line.ny * (p.y + pPrime.y) - 2 * line.c) /
-      (2 * normClaim);
+      Math.abs(
+        axisLine.nx * (p.x + pPrime.x) +
+          axisLine.ny * (p.y + pPrime.y) -
+          2 * axisLine.c
+      ) /
+      (2 * axisNorm);
     const colRes =
-      Math.abs((pPrime.x - p.x) * line.ny - (pPrime.y - p.y) * line.nx) /
-      normClaim;
+      Math.abs((pPrime.x - p.x) * axisLine.ny - (pPrime.y - p.y) * axisLine.nx) /
+      axisNorm;
     if (midRes > midpointError) midpointError = midRes;
     if (colRes > collinearityError) collinearityError = colRes;
   };
 
-  for (const id of claimMoving.set) {
+  const vertexIdsToVerify = new Set<VertexId>([
+    ...reqMoving.set,
+    ...claimMoving.set,
+  ]);
+  for (const id of vertexIdsToVerify) {
     const srcPos = src.map.get(id);
     const dstPos = dst.map.get(id);
     if (srcPos && dstPos) {
-      evalAxiomResiduals(srcPos, dstPos);
+      evalAxiomResidualsForLine(srcPos, dstPos, reqLine, normRequest);
+      evalAxiomResidualsForLine(srcPos, dstPos, line, normClaim);
     }
     const pair = pairMap.get(id);
     if (pair) {
-      evalAxiomResiduals(pair.p, pair.pPrime);
+      evalAxiomResidualsForLine(pair.p, pair.pPrime, reqLine, normRequest);
+      evalAxiomResidualsForLine(pair.p, pair.pPrime, line, normClaim);
     }
   }
 
@@ -587,16 +811,13 @@ export function verifyResult(
   }
 
   // =========================================================================
-  // STAGE D: Scope-Aware Metric Invariants
-  // - Purely moving edges/faces: length & |area| preservation + orientation inversion
-  // - Purely fixed edges/faces: length & |area| preservation
-  // - Boundary/mixed edges & faces (spanning moving & fixed): NOT checked for rigidity
+  // STAGE D: Scope-Aware Metric Invariants (evaluated on trusted request partition)
   // =========================================================================
   let maxLengthError = 0;
 
-  const isPurelyMovingVertex = (id: VertexId) => claimMoving.set.has(id);
+  const isPurelyMovingVertex = (id: VertexId) => reqMoving.set.has(id);
   const isPurelyFixedVertex = (id: VertexId) =>
-    claimFixed.set.has(id) && !claimMoving.set.has(id);
+    reqFixed.set.has(id) && !reqMoving.set.has(id);
 
   for (const edge of claim.sourceState.edges) {
     const purelyMoving =
@@ -607,7 +828,6 @@ export function verifyResult(
       isPurelyFixedVertex(edge.endVertexId);
 
     if (!purelyMoving && !purelyFixed) {
-      // Boundary edge between moving and fixed subsets: excluded from rigidity check
       continue;
     }
 
@@ -635,7 +855,6 @@ export function verifyResult(
     const allFixed = face.vertexIds.every((vid) => isPurelyFixedVertex(vid));
 
     if (!allMoving && !allFixed) {
-      // Boundary/mixed face spanning moving and fixed vertices: excluded from rigidity & inversion checks
       continue;
     }
 
@@ -658,7 +877,6 @@ export function verifyResult(
       continue;
     }
 
-    // All pairwise chords of purely moving / purely fixed faces must preserve length
     for (let i = 0; i < face.vertexIds.length; i++) {
       for (let j = i + 1; j < face.vertexIds.length; j++) {
         const err = Math.abs(
@@ -706,6 +924,7 @@ export function verifyResult(
   }
 
   const anyHardFailure =
+    !requestBound ||
     !witnessBound ||
     !idsPreserved ||
     !axiomsSatisfied ||
@@ -738,6 +957,7 @@ export function verifyResult(
       areaError,
     },
     predicates: {
+      requestBound,
       witnessBound,
       axiomsSatisfied,
       lengthsPreserved,
@@ -753,27 +973,69 @@ export function verifyResult(
 
 /**
  * Mode 2: PROCESS VERIFICATION
- * Independently validates every step S_i -> S_{i+1} in TRACE via its attached ReflectionWitness,
- * operationId binding, monotonic stepIndex, monotonic version sequence, and structural state continuity.
+ * Independently validates every step S_i -> S_{i+1} in TRACE against the separate sequence of trusted
+ * OperationRequests, verifying request binding, non-finite/monotonic stepIndex, version monotonicity,
+ * operation sequence consistency, and structural state continuity.
  */
 export function verifyProcess(
   trace: readonly TraceEntry[],
+  trustedRequests: readonly OperationRequest[],
   toleranceOverrides?: Partial<VerifierTolerances>
 ): VerificationVerdict {
   const diagnostics: string[] = [];
 
   if (!Array.isArray(trace) || trace.length === 0) {
+    if (!Array.isArray(trustedRequests) || trustedRequests.length > 0) {
+      diagnostics.push(
+        'TRACE_REQUEST_COUNT_MISMATCH: TRACE is empty but trustedRequests is missing or non-empty'
+      );
+      return {
+        status: 'FAIL',
+        mode: 'PROCESS_VERIFICATION',
+        residuals: zeroResiduals(),
+        predicates: defaultFalsePredicates(false, false),
+        diagnostics,
+      };
+    }
+
     diagnostics.push('UNDETERMINED: TRACE is empty');
     return {
       status: 'UNDETERMINED',
       mode: 'PROCESS_VERIFICATION',
       residuals: zeroResiduals(),
-      predicates: undeterminedPredicates(false),
+      predicates: defaultFalsePredicates(false, true),
+      diagnostics,
+    };
+  }
+
+  if (!Array.isArray(trustedRequests)) {
+    diagnostics.push(
+      'TRACE_REQUESTS_MISSING: verifyProcess requires trusted OperationRequest sequence'
+    );
+    return {
+      status: 'FAIL',
+      mode: 'PROCESS_VERIFICATION',
+      residuals: zeroResiduals(),
+      predicates: defaultFalsePredicates(false, false),
+      diagnostics,
+    };
+  }
+
+  if (trustedRequests.length !== trace.length) {
+    diagnostics.push(
+      `TRACE_REQUEST_COUNT_MISMATCH: trace.length=${trace.length} vs trustedRequests.length=${trustedRequests.length}`
+    );
+    return {
+      status: 'FAIL',
+      mode: 'PROCESS_VERIFICATION',
+      residuals: zeroResiduals(),
+      predicates: defaultFalsePredicates(false, false),
       diagnostics,
     };
   }
 
   let traceContinuous = true;
+  let requestBound = true;
   let witnessBound = true;
   let axiomsSatisfied = true;
   let lengthsPreserved = true;
@@ -790,13 +1052,77 @@ export function verifyProcess(
 
   let anyFail = false;
   let anyUndetermined = false;
+  const seenRequestIds = new Set<string>();
 
   for (let i = 0; i < trace.length; i++) {
     const entry = trace[i];
+    const trustedReq = trustedRequests[i];
+
+    if (
+      typeof entry.stepIndex !== 'number' ||
+      !Number.isFinite(entry.stepIndex) ||
+      !Number.isInteger(entry.stepIndex) ||
+      entry.stepIndex < 0
+    ) {
+      traceContinuous = false;
+      anyFail = true;
+      diagnostics.push(
+        `TRACE_INVALID_STEP_INDEX at step ${i}: stepIndex=${String(entry.stepIndex)} must be a finite non-negative integer`
+      );
+    }
+
+    if (!trustedReq || typeof trustedReq !== 'object') {
+      traceContinuous = false;
+      requestBound = false;
+      anyFail = true;
+      diagnostics.push(`TRACE_TRUSTED_REQUEST_MISSING at step ${i}`);
+      continue;
+    }
+
+    if (!entry.request || typeof entry.request !== 'object') {
+      traceContinuous = false;
+      requestBound = false;
+      anyFail = true;
+      diagnostics.push(`TRACE_ENTRY_REQUEST_MISSING at step ${i}`);
+      continue;
+    }
+
+    if (
+      entry.operationRequestId !== trustedReq.operationRequestId ||
+      entry.request.operationRequestId !== trustedReq.operationRequestId
+    ) {
+      traceContinuous = false;
+      requestBound = false;
+      anyFail = true;
+      diagnostics.push(
+        `TRACE_REQUEST_ID_MISMATCH at step ${i}: entry.operationRequestId=${entry.operationRequestId}, entry.request.id=${entry.request.operationRequestId}, trusted.id=${trustedReq.operationRequestId}`
+      );
+    }
+
+    if (!requestsStructurallyIdentical(entry.request, trustedReq)) {
+      traceContinuous = false;
+      requestBound = false;
+      anyFail = true;
+      diagnostics.push(
+        `TRACE_REQUEST_MISMATCH at step ${i}: recorded TRACE request differs from trusted OperationRequest`
+      );
+    }
+
+    if (seenRequestIds.has(trustedReq.operationRequestId)) {
+      traceContinuous = false;
+      requestBound = false;
+      anyFail = true;
+      diagnostics.push(
+        `TRACE_DUPLICATE_REQUEST_ID at step ${i}: operationRequestId="${trustedReq.operationRequestId}" reused across TRACE steps`
+      );
+    } else if (trustedReq.operationRequestId.length > 0) {
+      seenRequestIds.add(trustedReq.operationRequestId);
+    }
 
     if (!entry.witness) {
       traceContinuous = false;
       witnessBound = false;
+      requestBound = false;
       anyFail = true;
       diagnostics.push(`TRACE_WITNESS_MISSING at step ${i}`);
       continue;
@@ -808,6 +1134,18 @@ export function verifyProcess(
       anyFail = true;
       diagnostics.push(
         `TRACE_OPERATION_ID_MISMATCH at step ${i}: entry.operationId=${entry.operationId} vs witness.operationId=${entry.witness.operationId}`
+      );
+    }
+
+    if (
+      entry.operation !== trustedReq.operation ||
+      entry.operation !== 'REFLECTION_ACROSS_LINE'
+    ) {
+      traceContinuous = false;
+      requestBound = false;
+      anyFail = true;
+      diagnostics.push(
+        `TRACE_OPERATION_SEQUENCE_ERROR at step ${i}: entry.operation=${String(entry.operation)} vs trusted=${String(trustedReq.operation)}`
       );
     }
 
@@ -825,11 +1163,17 @@ export function verifyProcess(
 
     if (i > 0) {
       const prev = trace[i - 1];
-      if (entry.stepIndex <= prev.stepIndex) {
+      if (
+        typeof prev.stepIndex !== 'number' ||
+        typeof entry.stepIndex !== 'number' ||
+        !Number.isFinite(prev.stepIndex) ||
+        !Number.isFinite(entry.stepIndex) ||
+        !(entry.stepIndex > prev.stepIndex)
+      ) {
         traceContinuous = false;
         anyFail = true;
         diagnostics.push(
-          `TRACE_ORDER_ERROR at step ${i}: stepIndex=${entry.stepIndex} is not strictly greater than previous stepIndex=${prev.stepIndex}`
+          `TRACE_ORDER_ERROR at step ${i}: stepIndex=${String(entry.stepIndex)} is not strictly greater than previous stepIndex=${String(prev.stepIndex)}`
         );
       }
       if (!statesStructurallyIdentical(prev.resultingState, entry.sourceState)) {
@@ -837,6 +1181,17 @@ export function verifyProcess(
         anyFail = true;
         diagnostics.push(
           `TRACE_DISCONTINUITY between step ${i - 1} and step ${i}: resultingState does not match next sourceState`
+        );
+      }
+      if (
+        trustedReq.sourceStateId !== prev.resultingState.stateId ||
+        trustedReq.sourceStateVersion !== prev.resultingState.version
+      ) {
+        traceContinuous = false;
+        requestBound = false;
+        anyFail = true;
+        diagnostics.push(
+          `TRACE_REQUEST_CONTINUITY_ERROR between step ${i - 1} and step ${i}: trusted request expects ${trustedReq.sourceStateId}@v${trustedReq.sourceStateVersion}, previous resultingState is ${prev.resultingState.stateId}@v${prev.resultingState.version}`
         );
       }
       if (
@@ -860,6 +1215,7 @@ export function verifyProcess(
         parameters: entry.parameters,
         witness: entry.witness,
       },
+      trustedReq,
       toleranceOverrides
     );
 
@@ -878,6 +1234,7 @@ export function verifyProcess(
     maxLengthError = Math.max(maxLengthError, stepVerdict.residuals.maxLengthError);
     areaError = Math.max(areaError, stepVerdict.residuals.areaError);
 
+    requestBound = requestBound && stepVerdict.predicates.requestBound;
     witnessBound = witnessBound && stepVerdict.predicates.witnessBound;
     axiomsSatisfied = axiomsSatisfied && stepVerdict.predicates.axiomsSatisfied;
     lengthsPreserved = lengthsPreserved && stepVerdict.predicates.lengthsPreserved;
@@ -889,12 +1246,12 @@ export function verifyProcess(
     idsPreserved = idsPreserved && stepVerdict.predicates.idsPreserved;
 
     for (const msg of stepVerdict.diagnostics) {
-      diagnostics.push(`[step ${entry.stepIndex}] ${msg}`);
+      diagnostics.push(`[step ${String(entry.stepIndex)}] ${msg}`);
     }
   }
 
   let status: VerificationStatus;
-  if (anyFail || !traceContinuous) {
+  if (anyFail || !traceContinuous || !requestBound) {
     status = 'FAIL';
   } else if (anyUndetermined) {
     status = 'UNDETERMINED';
@@ -913,6 +1270,7 @@ export function verifyProcess(
       areaError,
     },
     predicates: {
+      requestBound,
       witnessBound,
       axiomsSatisfied,
       lengthsPreserved,

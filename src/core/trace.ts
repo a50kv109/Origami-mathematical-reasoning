@@ -7,13 +7,14 @@
 
 import type {
   GeometryState,
+  OperationRequest,
   ReflectionParameters,
   ReflectionWitness,
   TraceEntry,
 } from './types';
 
 /**
- * Recursively freezes an object graph so snapshots and witnesses inside TRACE cannot be mutated.
+ * Recursively freezes an object graph so snapshots, requests, and witnesses inside TRACE cannot be mutated.
  */
 export function deepFreeze<T>(value: T): T {
   if (value === null || typeof value !== 'object') {
@@ -33,6 +34,35 @@ export function deepFreeze<T>(value: T): T {
   }
 
   return value;
+}
+
+/**
+ * Creates a deep, immutable clone of an OperationRequest.
+ */
+export function cloneOperationRequestSnapshot(
+  request: OperationRequest
+): OperationRequest {
+  const cloned: OperationRequest = {
+    operationRequestId: request.operationRequestId,
+    operation: request.operation,
+    sourceStateId: request.sourceStateId,
+    sourceStateVersion: request.sourceStateVersion,
+    parameters: {
+      line: {
+        nx: request.parameters.line.nx,
+        ny: request.parameters.line.ny,
+        c: request.parameters.line.c,
+      },
+      movingVertexIds: [...request.parameters.movingVertexIds],
+      fixedVertexIds: [...request.parameters.fixedVertexIds],
+    },
+    movingVertexIds: [...request.movingVertexIds],
+    fixedVertexIds: [...request.fixedVertexIds],
+    requestProvenance: request.requestProvenance,
+    ...(request.timestamp !== undefined ? { timestamp: request.timestamp } : {}),
+  };
+
+  return deepFreeze(cloned);
 }
 
 /**
@@ -69,6 +99,7 @@ export function cloneReflectionWitness(
   const cloned: ReflectionWitness = {
     witnessId: witness.witnessId,
     operationId: witness.operationId,
+    operationRequestId: witness.operationRequestId,
     operation: witness.operation,
     sourceStateId: witness.sourceStateId,
     sourceStateVersion: witness.sourceStateVersion,
@@ -107,6 +138,7 @@ export interface CreateTraceEntryInput {
   readonly sourceState: GeometryState;
   readonly resultingState: GeometryState;
   readonly parameters: ReflectionParameters;
+  readonly request: OperationRequest;
   readonly witness: ReflectionWitness;
   readonly precision: number;
   readonly provenance: string;
@@ -114,11 +146,13 @@ export interface CreateTraceEntryInput {
 }
 
 /**
- * Constructs an immutable TraceEntry with deeply frozen states and witness.
+ * Constructs an immutable TraceEntry with deeply frozen states, request, and witness.
  */
 export function createTraceEntry(input: CreateTraceEntryInput): TraceEntry {
+  const frozenRequest = cloneOperationRequestSnapshot(input.request);
   const entry: TraceEntry = {
     operationId: input.operationId,
+    operationRequestId: frozenRequest.operationRequestId,
     stepIndex: input.stepIndex,
     operation: 'REFLECTION_ACROSS_LINE',
     sourceStateVersion: input.sourceState.version,
@@ -134,6 +168,7 @@ export function createTraceEntry(input: CreateTraceEntryInput): TraceEntry {
       movingVertexIds: [...input.parameters.movingVertexIds],
       fixedVertexIds: [...input.parameters.fixedVertexIds],
     },
+    request: frozenRequest,
     witness: cloneReflectionWitness(input.witness),
     precision: input.precision,
     provenance: input.provenance,

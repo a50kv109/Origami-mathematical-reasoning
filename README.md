@@ -1,12 +1,12 @@
 # Origami Mathematical Reasoning (OMR)
 
-**Версия:** `0.1.0` (**Phase 2.1 — Verified 2D Reflection Prototype**)  
+**Версия:** `0.1.0` (**Phase 2.2 — Trusted `OperationRequest` & Contract 02 Hardening**)  
 **Репозиторий:** <https://github.com/a50kv109/Origami-mathematical-reasoning>  
 **Лицензия:** [Apache License 2.0](./LICENSE)
 
 **Origami Mathematical Reasoning (OMR)** — исследовательско-инженерное математическое ядро на TypeScript для формального представления геометрических состояний, воспроизводимого журналирования преобразований (`TRACE`) и **независимой Zero-Trust верификации** в парадигме *Certifying Algorithms*.
 
-> **Важная граница релиза `v0.1.0`:** OMR **не является** полноценной системой физического складывания оригами, 3D-симулятором или графическим редактором. В текущей версии `0.1.0` реализован только проверяемый 2D-контур `L2 → ReflectionWitness → TRACE → L7` для операции отражения относительно прямой (`REFLECTION_ACROSS_LINE`).
+> **Важная граница текущего релиза:** OMR **не является** полноценной системой физического складывания оригами, 3D-симулятором или графическим редактором. В текущей кодовой базе реализован только проверяемый 2D-контур `OperationRequest → L2 → ReflectionWitness → TRACE → L7` для операции отражения относительно прямой (`REFLECTION_ACROSS_LINE`).
 
 ---
 
@@ -14,23 +14,25 @@
 
 Цель проекта — отделить математическую доказательность от планирования операций ИИ-агентами и от внешних CAD/оригами-инструментов:
 
-- математический генератор (**L2**) выполняет вычисления и выпускает проверяемое свидетельство перехода (`ReflectionWitness`);
-- журнал переходов (**TRACE**) фиксирует глубоко замороженную цепочку состояний `S₀ → S₁ → …`;
-- независимый верификатор (**L7**) проверяет результат и процесс по математическим аксиомам **без доверия генератору** и без повторного запуска его решателя.
+- постановщик задачи формирует отдельный доверенный запрос (**`OperationRequest`**);
+- математический генератор (**L2**) выполняет вычисления строго по запросу и выпускает проверяемое свидетельство перехода (`ReflectionWitness`);
+- журнал переходов (**TRACE**) фиксирует глубоко замороженную цепочку состояний `S₀ → S₁ → …` вместе с запросами и свидетельствами;
+- независимый верификатор (**L7**) проверяет результат, процесс и строгое соответствие исходному `OperationRequest` по математическим аксиомам **без доверия генератору** и без повторного запуска его решателя.
 
 Долгосрочно проект развивается как переносимая математическая основа для геометрического рассуждения в задачах перехода `2D → 3D` (развёртки, листовые конструкции, сборка панелей).
 
 ---
 
-## 2. Текущие возможности (`v0.1.0`)
+## 2. Текущие возможности (Phase 2.2)
 
-Реализовано и подтверждено автотестами (`13/13` в `tests/contract02.test.ts`):
+Реализовано и подтверждено автотестами (`19/19` в `tests/contract02.test.ts`):
 
-- **Типизированные контракты (`src/core/types.ts`):** `GeometryState` (с `stateId`, `version`, `vertices`, `edges`, `faces`), `LineNormalParams`, `ReflectionWitness`, `TraceEntry`, `VerificationClaim`, `VerificationVerdict`, `VerifierTolerances`.
-- **Детерминированный генератор 2D-отражений (`src/core/l2GeometryEngine.ts`):** вычисление `REFLECTION_ACROSS_LINE` в двойной точности IEEE-754 (без округления `.toFixed`) с поддержкой частичного отражения подмножества вершин и выпуском `ReflectionWitness`.
-- **Иммутабельный журнал `TRACE` (`src/core/trace.ts`):** глубокое клонирование и заморозка (`deepFreeze`) состояний, свидетельств и записей переходов.
-- **Аксиоматический верификатор `L7` (`src/core/l7IndependentVerifier.ts`):** 4-этапная Zero-Trust проверка (`verifyResult` и `verifyProcess`) с нулевым рантайм-импортом из `L2` и `TRACE`.
-- **Интерактивный веб-стенд (`src/components/VerificationWorkbench.tsx` + `src/App.tsx`):** клиентская визуализация `L2 ↔ L7`, пресетов осей, сценариев искажений и журнала `TRACE` вместе с паспортом архитектуры.
+- **Типизированные контракты (`src/core/types.ts`):** `GeometryState` (с `stateId`, `version`, `vertices`, `edges`, `faces`), `LineNormalParams`, `OperationRequest`, `ReflectionWitness`, `TraceEntry`, `VerificationClaim`, `VerificationVerdict` (с предикатом `requestBound`), `VerifierTolerances`.
+- **Доверенный запрос операции (`src/core/operationRequest.ts`):** фабрика `createOperationRequest` с глубокой заморозкой (`deepFreeze`), привязкой к `sourceStateId`/`sourceStateVersion` и явным разбиением `movingVertexIds`/`fixedVertexIds`.
+- **Детерминированный генератор 2D-отражений (`src/core/l2GeometryEngine.ts`):** вычисление `REFLECTION_ACROSS_LINE` строго по `OperationRequest` в двойной точности IEEE-754 (без округления `.toFixed`) с проверкой `REQUEST_STATE_MISMATCH` и выпуском `ReflectionWitness`.
+- **Иммутабельный журнал `TRACE` (`src/core/trace.ts`):** глубокое клонирование и заморозка (`deepFreeze`) состояний, запросов `OperationRequest`, свидетельств и записей переходов.
+- **Аксиоматический верификатор `L7` (`src/core/l7IndependentVerifier.ts`):** 4-этапная Zero-Trust проверка `verifyResult(claim, request, overrides?)` и `verifyProcess(trace, trustedRequests, overrides?)` с нулевым рантайм-импортом из `L2`, `TRACE` и `operationRequest`, а также со строгой проверкой `Number.isFinite(stepIndex)` и устойчивостью к согласованной подмене `claim + witness + geometry`.
+- **Интерактивный веб-стенд (`src/components/VerificationWorkbench.tsx` + `src/App.tsx`):** клиентская визуализация `OperationRequest → L2 ↔ L7`, пресетов осей, сценариев искажений и журнала `TRACE` вместе с паспортом архитектуры.
 
 ---
 
@@ -52,24 +54,26 @@
 
 ## 4. Реализованная область L2 (`src/core/l2GeometryEngine.ts`)
 
-В `v0.1.0` слой `L2` реализует две основные функции и типизированные ошибки `L2EngineError`:
+Слой `L2` реализует две основные функции и типизированные ошибки `L2EngineError`:
 
 - `createInitialGeometryState(input)` — формирует и глубоко замораживает начальный снимок `GeometryState` с проверкой конечности `version` и координат, а также уникальности `VertexID`.
-- `reflectAcrossLine(input)` — выполняет 2D-отражение вершин из `movingVertexIds` относительно прямой в нормальной форме `LineNormalParams`:
+- `reflectAcrossLine({ request, sourceState, ... })` — проверяет валидность и привязку `OperationRequest` к `sourceState` (`INVALID_OPERATION_REQUEST`, `REQUEST_STATE_MISMATCH`) и выполняет 2D-отражение вершин из `request.movingVertexIds` относительно прямой в нормальной форме `LineNormalParams`:
   $$n_x x + n_y y = c$$
   по формуле ортогональной проекции в IEEE-754 `f64`:
   $$p' = p - 2 \frac{n \cdot p - c}{n \cdot n} n$$
   - Все `VertexID`, `EdgeID` и `FaceID` сохраняются.
   - Вершины вне `movingVertexIds` (формирующие `fixedVertexIds`) копируются без изменений.
-  - Проверенная обработка вырожденных и некорректных входов: `INVALID_COORDINATE`, `DEGENERATE_NORMAL` (`||n|| <= 1e-12` по умолчанию), `UNKNOWN_VERTEX_ID`, `DUPLICATE_VERTEX_ID`.
+  - Проверенная обработка вырожденных и некорректных входов: `INVALID_COORDINATE`, `DEGENERATE_NORMAL` (`||n|| <= 1e-12` по умолчанию), `UNKNOWN_VERTEX_ID`, `DUPLICATE_VERTEX_ID`, `INVALID_OPERATION_REQUEST`, `REQUEST_STATE_MISMATCH`.
 
 ---
 
-## 5. Контракт `ReflectionWitness` (`src/core/types.ts`)
+## 5. Контракт `OperationRequest` и `ReflectionWitness` (`src/core/types.ts`, `src/core/operationRequest.ts`)
 
-`reflectAcrossLine` формирует глубоко замороженный `ReflectionWitness`, связывающий исходное состояние, целевое состояние и преобразование:
+`createOperationRequest` создаёт глубоко замороженный `OperationRequest` (`operationRequestId`, `operation`, `sourceStateId`, `sourceStateVersion`, `parameters`, `movingVertexIds`, `fixedVertexIds`, `requestProvenance`), отдельный от `VerificationClaim` и `ReflectionWitness`.
 
-- идентификаторы и версии: `witnessId`, `operationId`, `operation: 'REFLECTION_ACROSS_LINE'`, `sourceStateId`, `sourceStateVersion`, `targetStateId`, `targetStateVersion`;
+`reflectAcrossLine` формирует глубоко замороженный `ReflectionWitness`, связывающий исходный запрос, исходное состояние, целевое состояние и преобразование:
+
+- идентификаторы и версии: `witnessId`, `operationId`, `operationRequestId`, `operation: 'REFLECTION_ACROSS_LINE'`, `sourceStateId`, `sourceStateVersion`, `targetStateId`, `targetStateVersion`;
 - параметры оси: `axis: { n: { nx, ny }, c }`;
 - разбиение вершин: `movingVertexIds`, `fixedVertexIds`;
 - пары соответствия: `vertexPairs: [{ vertexId, p, pPrime }]`;
@@ -79,23 +83,23 @@
 
 ## 6. Журнал переходов `TRACE` (`src/core/trace.ts`)
 
-`TRACE` представляет собой массив неизменяемых записей `TraceEntry` (`stepIndex`, `operationId`, `sourceStateVersion`, `targetStateVersion`, `sourceState`, `resultingState`, `parameters`, `witness`, `precision`, `provenance`, `timestamp`):
+`TRACE` представляет собой массив неизменяемых записей `TraceEntry` (`stepIndex`, `operationId`, `operationRequestId`, `sourceStateVersion`, `targetStateVersion`, `sourceState`, `resultingState`, `parameters`, `request`, `witness`, `precision`, `provenance`, `timestamp`):
 
-- `deepFreeze(value)` — рекурсивная заморозка (`Object.freeze`) состояний и свидетельств;
-- `cloneGeometryState(state)` и `cloneReflectionWitness(witness)` — иммутабельное глубокое копирование с сохранением точных значений IEEE-754;
+- `deepFreeze(value)` — рекурсивная заморозка (`Object.freeze`) состояний, запросов и свидетельств;
+- `cloneGeometryState(state)`, `cloneOperationRequestSnapshot(request)` и `cloneReflectionWitness(witness)` — иммутабельное глубокое копирование с сохранением точных значений IEEE-754;
 - `createTraceEntry(input)` и `appendTraceEntry(trace, entry)` — построение и пошаговое наращивание замороженного журнала.
 
 ---
 
 ## 7. Независимая проверка L7 (`src/core/l7IndependentVerifier.ts`)
 
-Модуль `L7` **не импортирует** ни одной функции или структуры среды выполнения из `L2` и `TRACE` (разрешены только чистые типы `import type ... from './types'`, что проверяется статическим тестом). Вместо повторного вычисления координат решателем `L7` проверяет `VerificationClaim` и `TraceEntry[]` в четыре этапа:
+Модуль `L7` **не импортирует** ни одной функции или структуры среды выполнения из `L2`, `TRACE` или `operationRequest` (разрешены только чистые типы `import type ... from './types'`, что проверяется статическим тестом). Вместо повторного вычисления координат решателем `L7` проверяет `VerificationClaim` и `TraceEntry[]` относительно доверенного `OperationRequest` в четыре этапа:
 
-1. **Stage A (Допустимость входа):** проверка конечности всех IEEE-754 чисел и невырожденности нормали `||n|| > zeroNormalEpsilon` (`1e-12`). При нарушении возвращается `UNDETERMINED`.
-2. **Stage B (Трёхсторонняя привязка `witness ↔ claim ↔ states`):** согласованность `stateId`/`version`, совпадение оси в `claim` и `witness`, сохранение всех `VertexID`/`EdgeID`/`FaceID`, дизъюнктное разбиение `movingVertexIds` / `fixedVertexIds`, биекция `witness.vertexPairs`, неподвижность `fixedVertexIds`. Поле `witness.claimedResiduals` полностью игнорируется.
-3. **Stage C (Масштаб-инвариантные аксиомы отражения):**
+1. **Stage A (Допустимость входа):** проверка конечности всех IEEE-754 чисел (включая `request`, `claim`, `witness` и состояния) и невырожденности нормали `||n|| > zeroNormalEpsilon` (`1e-12`). При нарушении возвращается `UNDETERMINED`.
+2. **Stage B (Привязка к `OperationRequest` и свидетельство `witness ↔ claim ↔ states`):** проверка `requestBound` (идентификатор запроса, `requestProvenance`, тип операции, `sourceStateId`/`version`, ось, разбиение `movingVertexIds`/`fixedVertexIds` во всех структурах) и `witnessBound` (биекция `witness.vertexPairs`, неподвижность `fixedVertexIds`, сохранение `VertexID`/`EdgeID`/`FaceID`). Поле `witness.claimedResiduals` полностью игнорируется.
+3. **Stage C (Аксиомы отражения, инвариантные к масштабу коэффициентов уравнения прямой):**
    $$r_{\text{mid}} = \frac{|n \cdot (p + p') - 2c|}{2\|n\|} \le \varepsilon, \qquad r_{\text{perp}} = \frac{|(p' - p) \times n|}{\|n\|} \le \varepsilon$$
-   где $\|n\| = \operatorname{hypot}(n_x, n_y)$. По точному тождеству $\|p' - p'_{\text{exact}}\|_2 = \sqrt{4\,r_{\text{mid}}^2 + r_{\text{perp}}^2}$ выполнение аксиом гарантирует корректность отражения без пересчёта формулы `L2`.
+   где $\|n\| = \operatorname{hypot}(n_x, n_y)$. Аксиомы вычисляются относительно оси `request` и оси `claim`; нормировка на $\|n\|$ обеспечивает инвариантность именно к масштабированию коэффициентов $(n_x, n_y, c) \mapsto \alpha\,(n_x, n_y, c)$. По точному тождеству $\|p' - p'_{\text{exact}}\|_2 = \sqrt{4\,r_{\text{mid}}^2 + r_{\text{perp}}^2}$ выполнение аксиом гарантирует корректность отражения без пересчёта формулы `L2`.
 4. **Stage D (Инварианты области действия):** сохранение длин всех рёбер и хорд и модуля площади $|S|$ (формула Гаусса / Shoelace) на чисто движущихся и чисто фиксированных элементах, а также строгая инверсия знака ориентированной площади на невырожденных чисто движущихся гранях (`|S| > degenerateAreaEpsilon`). Смешанные грани/рёбра (между `moving` и `fixed`) исключаются из проверки жёсткости.
 
 Допуски по умолчанию (`DEFAULT_VERIFIER_TOLERANCES`):
@@ -104,7 +108,7 @@
 - `zeroNormalEpsilon = 1e-12`
 - `degenerateAreaEpsilon = 1e-12`
 
-Режимы и вердикты: `verifyResult(claim, overrides?)` и `verifyProcess(trace, overrides?)` возвращают `VerificationVerdict` со статусом **`PASS | FAIL | UNDETERMINED`**.
+Режимы и вердикты: `verifyResult(claim, request, overrides?)` и `verifyProcess(trace, trustedRequests, overrides?)` возвращают `VerificationVerdict` со статусом **`PASS | FAIL | UNDETERMINED`**. В `verifyProcess` дополнительно проверяются конечность и целочисленность `stepIndex` (`Number.isFinite`, `Number.isInteger`, `stepIndex >= 0`), строгая монотонность `stepIndex`, уникальность `operationRequestId` и непрерывность состояний и запросов между шагами.
 
 ---
 
@@ -121,10 +125,10 @@ npm ci
 ### Основные команды
 
 ```bash
-# Автоматические тесты (Contract 02 v2, 13 сценариев на node:test + tsx)
+# Автоматические тесты (Contract 02 v2, 19 сценариев на node:test + tsx)
 npm test
 
-# Проверка типов TypeScript (tsc --noEmit)
+# Проверка типов TypeScript (tsc --noEmit при "strict": true)
 npm run lint
 
 # Сборка клиентского стенда (Vite -> dist/)
@@ -139,15 +143,13 @@ npm run clean
 
 ---
 
-## 9. Ограничения версии `0.1.0`
+## 9. Текущие ограничения
 
 1. **Узкая предметная область:** реализована только плоская 2D-операция `REFLECTION_ACROSS_LINE` на заранее заданном графе `GeometryState`. Операции `FACE_SUBDIVISION` (L1), Z-порядок слоёв (L3), 3D-кинематика (L4), криволинейные сгибы (L5) и оптимизация (L6) в коде отсутствуют.
-2. **Отсутствие `OperationRequest` (архитектурный риск):** `VerificationClaim` содержит параметры `claim.parameters` и `witness`, но не отдельный доверенный `OperationRequest` от внешнего постановщика задачи. Согласованная подмена оси одновременно в `claim.parameters` и `witness` не может быть обнаружена внутри `verifyResult` без внешнего эталона.
-3. **Вердикт `CAPABILITY_GAP` пока не реализован:** `VerificationStatus` в `src/core/types.ts` ограничен значениями `'PASS' | 'FAIL' | 'UNDETERMINED'`.
-4. **Арифметика IEEE-754 `f64`:** при экстремальных масштабах сдвига ($|c| \gg 10^{10}$) или длинных цепочках отражений возможно сокращение мантиссы; точная/интервальная арифметика (`BigInt`) запланирована на следующие фазы.
-5. **Отсутствие криптографической привязки `TRACE`:** целостность `TRACE` проверяется структурно в памяти без канонизации JCS (RFC 8785) и хеш-цепочек SHA-256.
-6. **Граничный случай `stepIndex: NaN` в `verifyProcess`:** в `src/core/l7IndependentVerifier.ts` (`entry.stepIndex <= prev.stepIndex`) значение `NaN` не перехватывается сравнением порядка (устранение отложено на Phase 2.2).
-7. **Пакетный режим:** `package.json` помечен `"private": true`; актуальным lock-файлом для воспроизводимой установки является `package-lock.json` (`bun.lock` сохранён в корне с раннего этапа и не используется в CI/npm-потоке).
+2. **Вердикт `CAPABILITY_GAP` пока не реализован:** `VerificationStatus` в `src/core/types.ts` ограничен значениями `'PASS' | 'FAIL' | 'UNDETERMINED'`.
+3. **Арифметика IEEE-754 `f64`:** при экстремальных масштабах координат или длинных цепочках отражений возможно сокращение мантиссы; точная/интервальная арифметика (`BigInt`) запланирована на следующие фазы.
+4. **Отсутствие криптографической привязки `TRACE`:** целостность `TRACE` и соответствие `OperationRequest` проверяются структурно в памяти без канонизации JCS (RFC 8785), подписей и хеш-цепочек SHA-256.
+5. **Пакетный режим:** `package.json` помечен `"private": true`; актуальным lock-файлом для воспроизводимой установки является `package-lock.json` (`bun.lock` сохранён в корне с раннего этапа и не используется в CI/npm-потоке).
 
 ---
 
@@ -157,8 +159,8 @@ npm run clean
 | :--- | :--- | :--- |
 | **Phase 1** | Архитектура `L1–L7`, эпистемическая дисциплина и аудит источников | Завершено |
 | **Phase 2.1** | `Contract 02 v2` (`L2 ↔ L7`, `ReflectionWitness`, аксиоматический L7) | **Реализовано (`v0.1.0`)** |
-| **Phase 2.2** | `OperationRequest`, строгая проверка `stepIndex`, `tsconfig` `"strict": true`, `CAPABILITY_GAP` | Запланировано |
-| **Phase 3** | `Contract 01` (`L1 ↔ L2`, `FACE_SUBDIVISION`, `portableId != localId`) | Запланировано |
+| **Phase 2.2** | `OperationRequest`, привязка `requestBound`, строгая проверка `stepIndex`, `"strict": true` в `tsconfig.json`, ESM `vite.config.ts`, 19 автотестов | **Реализовано (`CAPABILITY_GAP` отложен)** |
+| **Phase 3** | `Contract 01` (`L1 ↔ L2`, `FACE_SUBDIVISION`, `portableId != localId`), формализация `CAPABILITY_GAP` | Запланировано |
 | **Phase 4** | Сквозной 2D MVP (`Квадрат → Подразделение → Отражение → TRACE → L7`) | Запланировано |
 | **Phase 5–7** | Слой `L3` (порядок слоёв), `L4` (3D-кинематика), `L6` (оптимизация), `L5` (криволинейные складки) | Запланировано |
 | **Phase 8** | Переносимый AI Reasoning Skill и проверенные адаптеры (`ToolAdapter`) | Запланировано |

@@ -20,6 +20,7 @@ import {
   verifyProcess,
   verifyResult,
 } from '../core/l7IndependentVerifier';
+import { createOperationRequest } from '../core/operationRequest';
 import {
   appendTraceEntry,
   cloneGeometryState,
@@ -29,6 +30,7 @@ import {
 import type {
   GeometryState,
   LineNormalParams,
+  OperationRequest,
   Point2D,
   ReflectionWitness,
   TraceEntry,
@@ -136,15 +138,25 @@ export function VerificationWorkbench({
     const { initialState, movingVertexIds, line } =
       buildBaseSquareTriangleState(axisPreset);
 
-    // Run L2 certifying geometry engine (normal projection + ReflectionWitness)
-    const l2Out = reflectAcrossLine({
+    // Authoritative OperationRequest created outside L2/Claim/Witness
+    const req0 = createOperationRequest({
+      operationRequestId: 'workbench-req-000',
       sourceState: initialState,
       line,
       movingVertexIds,
+      requestProvenance: 'WORKBENCH_TRUSTED_AUTHORITY',
+    });
+
+    // Run L2 certifying geometry engine (normal projection + ReflectionWitness bound to req0)
+    const l2Out = reflectAcrossLine({
+      request: req0,
+      sourceState: initialState,
       stepIndex: 0,
       precisionContext: DEFAULT_VERIFIER_TOLERANCES.epsilon,
     });
 
+    let activeRequest: OperationRequest = req0;
+    let trustedRequests: readonly OperationRequest[] = [req0];
     let claimSource = l2Out.traceEntry.sourceState;
     let claimResult = l2Out.resultingState;
     let claimParams = l2Out.traceEntry.parameters;
@@ -152,12 +164,22 @@ export function VerificationWorkbench({
     let trace: readonly TraceEntry[] = [l2Out.traceEntry];
 
     if (degenerateMode) {
+      const reqDeg = createOperationRequest({
+        operationRequestId: 'workbench-req-deg',
+        sourceState: initialState,
+        line: { nx: 0, ny: 0, c: line.c },
+        movingVertexIds,
+        requestProvenance: 'WORKBENCH_DEGENERATE_PROBE',
+      });
+      activeRequest = reqDeg;
+      trustedRequests = [reqDeg];
       claimParams = {
         ...claimParams,
         line: { nx: 0, ny: 0, c: line.c },
       };
       claimWitness = cloneReflectionWitness({
         ...claimWitness,
+        operationRequestId: reqDeg.operationRequestId,
         axis: { n: { nx: 0, ny: 0 }, c: line.c },
       });
       trace = [
@@ -167,6 +189,7 @@ export function VerificationWorkbench({
           sourceState: claimSource,
           resultingState: claimResult,
           parameters: claimParams,
+          request: reqDeg,
           witness: claimWitness,
           precision: DEFAULT_VERIFIER_TOLERANCES.epsilon,
           provenance: l2Out.traceEntry.provenance,
@@ -203,13 +226,14 @@ export function VerificationWorkbench({
           sourceState: claimSource,
           resultingState: claimResult,
           parameters: claimParams,
+          request: req0,
           witness: claimWitness,
           precision: DEFAULT_VERIFIER_TOLERANCES.epsilon,
           provenance: 'FORGED_WITNESS_RESIDUALS_SIMULATION',
         }),
       ];
     } else if (testCase === 'T-03') {
-      // Tamper axis scalar c in claim.parameters after L2 emitted witness
+      // Tamper axis scalar c in claim.parameters after L2 emitted witness while trusted req0 stays unchanged
       claimParams = {
         ...claimParams,
         line: { nx: line.nx, ny: line.ny, c: line.c + 0.25 },
@@ -221,6 +245,7 @@ export function VerificationWorkbench({
           sourceState: claimSource,
           resultingState: claimResult,
           parameters: claimParams,
+          request: req0,
           witness: claimWitness,
           precision: DEFAULT_VERIFIER_TOLERANCES.epsilon,
           provenance: 'TAMPERED_AXIS_PARAMETERS',
@@ -229,10 +254,16 @@ export function VerificationWorkbench({
     } else if (testCase === 'T-04') {
       // Two-step trace where step 1 is a valid transition from step0.resultingState,
       // but step 1's sourceState inside TRACE is disconnected from step 0's resultingState.
-      const step1Valid = reflectAcrossLine({
+      const req1 = createOperationRequest({
+        operationRequestId: 'workbench-req-001',
         sourceState: l2Out.resultingState,
         line: { nx: 1, ny: 0, c: 0 },
         movingVertexIds: [movingVertexIds[0]],
+        requestProvenance: 'WORKBENCH_TRUSTED_AUTHORITY',
+      });
+      const step1Valid = reflectAcrossLine({
+        request: req1,
+        sourceState: l2Out.resultingState,
         stepIndex: 1,
         precisionContext: DEFAULT_VERIFIER_TOLERANCES.epsilon,
       });
@@ -255,28 +286,34 @@ export function VerificationWorkbench({
         sourceState: brokenIntermediate,
         resultingState: step1Valid.resultingState,
         parameters: step1Valid.traceEntry.parameters,
+        request: req1,
         witness: step1Valid.witness,
         precision: DEFAULT_VERIFIER_TOLERANCES.epsilon,
         provenance: 'BROKEN_TRACE_CONTINUITY',
       });
 
       trace = appendTraceEntry([l2Out.traceEntry], brokenEntry1);
-      // Result Verification inspects the valid step 1 claim directly
+      // Result Verification inspects the valid step 1 claim directly against req1
+      activeRequest = req1;
+      trustedRequests = [req0, req1];
       claimSource = step1Valid.traceEntry.sourceState;
       claimResult = step1Valid.resultingState;
       claimParams = step1Valid.traceEntry.parameters;
       claimWitness = step1Valid.witness;
     }
 
-    const resultVerdict = verifyResult({
-      sourceState: claimSource,
-      resultingState: claimResult,
-      operation: 'REFLECTION_ACROSS_LINE',
-      parameters: claimParams,
-      witness: claimWitness,
-    });
+    const resultVerdict = verifyResult(
+      {
+        sourceState: claimSource,
+        resultingState: claimResult,
+        operation: 'REFLECTION_ACROSS_LINE',
+        parameters: claimParams,
+        witness: claimWitness,
+      },
+      activeRequest
+    );
 
-    const processVerdict = verifyProcess(trace);
+    const processVerdict = verifyProcess(trace, trustedRequests);
 
     const activeVerdict: VerificationVerdict | null =
       stage === 'reflected'
@@ -529,7 +566,7 @@ export function VerificationWorkbench({
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <span className="font-mono text-xs text-slate-500">
-              {traceMode === 'process' ? 'verifyProcess(trace)' : 'verifyResult(claim)'} · ε = 1e-7
+              {traceMode === 'process' ? 'verifyProcess(trace, requests)' : 'verifyResult(claim, req)'} · ε = 1e-7
             </span>
             <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold">
               {!verdict && (
@@ -769,7 +806,7 @@ export function VerificationWorkbench({
 
           <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-[11px] text-slate-700">
             <div className="flex flex-wrap items-center justify-between gap-2 text-slate-600">
-              <span>{witness.witnessId}</span>
+              <span>{witness.witnessId} · req: {witness.operationRequestId}</span>
               <span>
                 axis: n=({witness.axis.n.nx}, {witness.axis.n.ny}), c={witness.axis.c}
               </span>

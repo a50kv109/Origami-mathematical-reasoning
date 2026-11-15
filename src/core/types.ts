@@ -59,6 +59,23 @@ export interface ReflectionParameters {
   readonly fixedVertexIds: readonly VertexId[];
 }
 
+/**
+ * Trusted immutable operation request created outside L2/Claim/Witness.
+ * L2 must execute exactly these requested parameters, and L7 independently
+ * checks correspondence between the result, witness, TRACE, and this request.
+ */
+export interface OperationRequest {
+  readonly operationRequestId: string;
+  readonly operation: 'REFLECTION_ACROSS_LINE';
+  readonly sourceStateId: string;
+  readonly sourceStateVersion: number;
+  readonly parameters: ReflectionParameters;
+  readonly movingVertexIds: readonly VertexId[];
+  readonly fixedVertexIds: readonly VertexId[];
+  readonly requestProvenance: string;
+  readonly timestamp?: string;
+}
+
 export interface ReflectionWitnessVertexPair {
   readonly vertexId: VertexId;
   readonly p: Point2D;
@@ -80,6 +97,7 @@ export interface ReflectionWitnessClaimedResiduals {
 export interface ReflectionWitness {
   readonly witnessId: string;
   readonly operationId: string;
+  readonly operationRequestId: string;
   readonly operation: 'REFLECTION_ACROSS_LINE';
   readonly sourceStateId: string;
   readonly sourceStateVersion: number;
@@ -100,6 +118,7 @@ export interface ReflectionWitness {
 
 export interface TraceEntry {
   readonly operationId: string;
+  readonly operationRequestId: string;
   readonly stepIndex: number;
   readonly operation: 'REFLECTION_ACROSS_LINE';
   readonly sourceStateVersion: number;
@@ -107,6 +126,7 @@ export interface TraceEntry {
   readonly sourceState: GeometryState;
   readonly resultingState: GeometryState;
   readonly parameters: ReflectionParameters;
+  readonly request: OperationRequest;
   readonly witness: ReflectionWitness;
   readonly precision: number;
   readonly provenance: string;
@@ -137,6 +157,7 @@ export interface VerificationResiduals {
 }
 
 export interface VerificationPredicates {
+  readonly requestBound: boolean;
   readonly witnessBound: boolean;
   readonly axiomsSatisfied: boolean;
   readonly lengthsPreserved: boolean;
