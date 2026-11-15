@@ -2,14 +2,17 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Phase 2.3 — Implementation Step 1 & Step 2: Deterministic Metamorphic Tests
+ * Phase 2.3 — Implementation Step 1: Core Deterministic Metamorphic Tests
  * Covers:
  *   - Property A: Reflection Involution: R_L(R_L(P)) = P
  *   - Property B: Axis Coefficient Scaling: R_(n,c)(P) = R_(alpha*n, alpha*c)(P)
  *   - Property C: Translation Equivariance: T_v(R_L(P)) = R_(T_v(L))(T_v(P))
- *   - Property D: Pairwise Distance Invariance: ||R_L(P_i) - R_L(P_j)|| = ||P_i - P_j||
- *   - Property E: Fixed Points on Reflection Axis: P in L => R_L(P) = P
- *   - Negative Controls: Corrupted distance, displaced axis/fixed vertices, forged claimedResiduals
+ *   - Negative Control: Corrupted result + forged claimedResiduals = 0 rejected by L7
+ *
+ * Phase 2.3 — Implementation Step 2: Distance Invariance & Fixed Points
+ *   - Property D: Pairwise Distance Invariance ||R_L(Pi) - R_L(Pj)|| = ||Pi - Pj||
+ *   - Property E: Fixed Points on the Axis P in L => R_L(P) = P
+ *   - Negative Controls: corrupted distances, displaced "axis" vertices, forged claimedResiduals
  */
 
 import test from 'node:test';
@@ -34,8 +37,6 @@ import type {
 
 const FIXED_TIMESTAMP = '2026-01-01T00:00:00.000Z';
 const METAMORPHIC_COORD_TOLERANCE = 1e-12;
-// Relative distance tolerance scaled by max(1, ||P_i - P_j||) so small & moderate distances stay tight
-const METAMORPHIC_DISTANCE_REL_TOLERANCE = 1e-12;
 
 function makeSubdividedSquare(stateId = 'sq-v0', version = 0): GeometryState {
   return createInitialGeometryState({
@@ -842,688 +843,524 @@ test('Negative Control: Translating geometry without shifting c -> c + nx*a + ny
 });
 
 // ===========================================================================
-// Phase 2.3.2 Helpers for Property D & Property E
+// Phase 2.3.2 — Shared helpers for Properties D and E
 // ===========================================================================
 
-function computeExpectedReflectionPoint(
-  p: Point2D,
-  line: LineNormalParams
-): Point2D {
-  const normSq = line.nx * line.nx + line.ny * line.ny;
-  const factor = (2 * (line.nx * p.x + line.ny * p.y - line.c)) / normSq;
-  return {
-    x: p.x - factor * line.nx,
-    y: p.y - factor * line.ny,
-  };
+/**
+ * Numerical policy (Phase 2.3.2):
+ *  - METAMORPHIC_COORD_TOLERANCE (1e-12, absolute, defined above): per-coordinate
+ *    comparison between L2 output and an independently computed expectation.
+ *  - METAMORPHIC_DISTANCE_TOLERANCE (1e-12 * max(1, d_before)): comparison of a pairwise
+ *    Euclidean distance before/after reflection. Distances are sums of two coordinate
+ *    errors passed through hypot, so the bound is scaled by the distance magnitude.
+ *  - DEFAULT_VERIFIER_TOLERANCES.epsilon (1e-7): L7's own acceptance threshold, used only
+ *    when asserting on L7 verdicts. No tolerance was raised to make a test pass.
+ */
+const METAMORPHIC_DISTANCE_REL_TOLERANCE = 1e-12;
+
+function distanceTolerance(dBefore: number): number {
+  return METAMORPHIC_DISTANCE_REL_TOLERANCE * Math.max(1, dBefore);
 }
 
-function assertSubsetPairwiseDistancesPreserved(
-  sourceState: GeometryState,
-  resultingState: GeometryState,
-  vertexIds: readonly VertexId[],
-  ctx: FailureDiagnosticContext
-): number {
-  const srcMap = new Map(sourceState.vertices.map((v) => [v.id, v.position]));
-  const dstMap = new Map(resultingState.vertices.map((v) => [v.id, v.position]));
+interface DistanceViolation {
+  readonly a: VertexId;
+  readonly b: VertexId;
+  readonly before: number;
+  readonly after: number;
+  readonly error: number;
+}
 
-  let maxDistanceError = 0;
-  let checkedPairs = 0;
-
-  for (let i = 0; i < vertexIds.length; i++) {
-    for (let j = i + 1; j < vertexIds.length; j++) {
-      const idA = vertexIds[i]!;
-      const idB = vertexIds[j]!;
-      const pA0 = srcMap.get(idA);
-      const pB0 = srcMap.get(idB);
-      const pA1 = dstMap.get(idA);
-      const pB1 = dstMap.get(idB);
-      assert.ok(pA0 && pB0, `Missing source vertices (${idA}, ${idB}) for ${ctx.property}`);
-      assert.ok(pA1 && pB1, `Missing resulting vertices (${idA}, ${idB}) for ${ctx.property}`);
-
-      const d0 = Math.hypot(pA0.x - pB0.x, pA0.y - pB0.y);
-      const d1 = Math.hypot(pA1.x - pB1.x, pA1.y - pB1.y);
-      const err = Math.abs(d1 - d0);
-      const tol = METAMORPHIC_DISTANCE_REL_TOLERANCE * Math.max(1, d0);
-
-      if (err > maxDistanceError) {
-        maxDistanceError = err;
+/**
+ * Compares every unordered pair {i, j} (i < j) of `ids` between two states, matching
+ * vertices strictly by ID. Throws if an ID is missing from either state.
+ * Returns the violations and the number of pairs compared.
+ */
+function checkPairwiseDistances(
+  before: GeometryState,
+  after: GeometryState,
+  ids: readonly VertexId[]
+): { violations: DistanceViolation[]; pairsCompared: number } {
+  const b = new Map(before.vertices.map((v) => [v.id, v.position]));
+  const a = new Map(after.vertices.map((v) => [v.id, v.position]));
+  const violations: DistanceViolation[] = [];
+  let pairsCompared = 0;
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      const idI = ids[i]!;
+      const idJ = ids[j]!;
+      const bi = b.get(idI);
+      const bj = b.get(idJ);
+      const ai = a.get(idI);
+      const aj = a.get(idJ);
+      assert.ok(bi && bj, `Vertex ${idI}/${idJ} missing in source state`);
+      assert.ok(ai && aj, `Vertex ${idI}/${idJ} missing in resulting state`);
+      const dBefore = Math.hypot(bi.x - bj.x, bi.y - bj.y);
+      const dAfter = Math.hypot(ai.x - aj.x, ai.y - aj.y);
+      const error = Math.abs(dAfter - dBefore);
+      pairsCompared++;
+      if (!(error <= distanceTolerance(dBefore))) {
+        violations.push({ a: idI, b: idJ, before: dBefore, after: dAfter, error });
       }
-      checkedPairs++;
-
-      assert.ok(
-        err <= tol,
-        `Pairwise distance violation on (${idA}, ${idB}): ${JSON.stringify({
-          property: ctx.property,
-          parameters: ctx.parameters,
-          sourceStateId: sourceState.stateId,
-          expectedRelation: `${ctx.expectedRelation} (||P'_${idA}-P'_${idB}|| = ||P_${idA}-P_${idB}||)`,
-          d0,
-          d1,
-          actualResidual: err,
-          tolerance: tol,
-        })}`
-      );
     }
   }
-
-  assert.ok(
-    checkedPairs > 0,
-    `Expected at least one unordered vertex pair for ${ctx.property}`
-  );
-  return maxDistanceError;
+  return { violations, pairsCompared };
 }
 
-// ===========================================================================
-// Property D — Pairwise Distance Invariance: ||R_L(P_i) - R_L(P_j)|| = ||P_i - P_j||
-// ===========================================================================
-
-test('Property D1 (Pairwise Distance Invariance — Full Reflection): all unordered adjacent & non-adjacent pairs preserved across geometries and axes', () => {
-  const axes: readonly { readonly label: string; readonly line: LineNormalParams }[] = [
-    { label: 'diag_x_plus_y_1', line: { nx: 1, ny: 1, c: 1 } },
-    { label: 'oblique_3x_minus_4y_5', line: { nx: 3, ny: -4, c: 5 } },
-    { label: 'neg_oblique', line: { nx: -2.5, ny: 1.75, c: -3.25 } },
-    { label: 'vertical_x_minus_1_5', line: { nx: 1, ny: 0, c: -1.5 } },
-  ];
-
-  const geometries: readonly {
-    readonly name: string;
-    readonly state: GeometryState;
-  }[] = [
-    { name: 'subdividedSquare', state: makeSubdividedSquare('dist-sq-v0', 0) },
-    {
-      name: 'asymmetricPolygonMesh',
-      state: makeAsymmetricPolygonMesh('dist-mesh-v0', 0),
-    },
-  ];
-
-  for (const geom of geometries) {
-    const allIds = geom.state.vertices.map((v) => v.id);
-    // Confirm test covers non-adjacent pairs as well as edges
-    const totalUnorderedPairs = (allIds.length * (allIds.length - 1)) / 2;
-    assert.ok(totalUnorderedPairs > geom.state.edges.length);
-
-    for (const axis of axes) {
-      const req = createOperationRequest({
-        operationRequestId: `req-dist-full-${geom.name}-${axis.label}`,
-        sourceState: geom.state,
-        line: axis.line,
-        movingVertexIds: allIds,
-        timestamp: FIXED_TIMESTAMP,
-      });
-      const out = reflectAcrossLine({
-        request: req,
-        sourceState: geom.state,
-        stepIndex: 0,
-        timestamp: FIXED_TIMESTAMP,
-      });
-
-      assertTopologyPreserved(out.resultingState, geom.state, {
-        property: 'Property D: Pairwise Distance Invariance (Full)',
-        parameters: { geometry: geom.name, axis: axis.label, line: axis.line },
-        sourceState: geom.state,
-        expectedRelation: 'Topology and vertex identities preserved',
-      });
-
-      assertSubsetPairwiseDistancesPreserved(geom.state, out.resultingState, allIds, {
-        property: 'Property D: Pairwise Distance Invariance (Full)',
-        parameters: { geometry: geom.name, axis: axis.label, line: axis.line },
-        sourceState: geom.state,
-        expectedRelation: '||R_L(P_i) - R_L(P_j)|| = ||P_i - P_j|| for all unordered pairs',
-      });
-
-      const verdict = verifyResult(
-        {
-          sourceState: geom.state,
-          resultingState: out.resultingState,
-          operation: 'REFLECTION_ACROSS_LINE',
-          parameters: out.traceEntry.parameters,
-          witness: out.witness,
-        },
-        req
-      );
-      assert.equal(
-        verdict.status,
-        'PASS',
-        `L7 verifyResult failed for Property D full (${geom.name}, ${axis.label}): ${verdict.diagnostics.join('; ')}`
-      );
-      assert.equal(verdict.predicates.lengthsPreserved, true);
-      assert.equal(verdict.predicates.idsPreserved, true);
-    }
-  }
-});
-
-test('Property D2 (Pairwise Distance Invariance — Partial Reflection): all unordered pairs within moving and within fixed subsets preserved', () => {
-  // 6-vertex mesh: 3 purely moving vertices (D, E, G) and 3 purely fixed vertices (A, B, C),
-  // including non-adjacent pairs inside each subset and mixed boundary edges between subsets.
-  const partialMesh = createInitialGeometryState({
-    stateId: 'dist-partial-v0',
-    version: 0,
-    vertices: [
-      { id: 'A', position: { x: -2, y: 0 } },
-      { id: 'B', position: { x: 0, y: 0 } },
-      { id: 'C', position: { x: -1, y: 2 } },
-      { id: 'D', position: { x: 2, y: 0.5 } },
-      { id: 'E', position: { x: 5, y: 1.5 } },
-      { id: 'G', position: { x: 3.5, y: 4 } },
-    ],
-    edges: [
-      { id: 'E_AB', startVertexId: 'A', endVertexId: 'B' },
-      { id: 'E_BC', startVertexId: 'B', endVertexId: 'C' },
-      { id: 'E_CA', startVertexId: 'C', endVertexId: 'A' },
-      { id: 'E_DE', startVertexId: 'D', endVertexId: 'E' },
-      { id: 'E_EG', startVertexId: 'E', endVertexId: 'G' },
-      { id: 'E_GD', startVertexId: 'G', endVertexId: 'D' },
-      { id: 'E_BD', startVertexId: 'B', endVertexId: 'D' },
-      { id: 'E_CG', startVertexId: 'C', endVertexId: 'G' },
-    ],
-    faces: [
-      { id: 'F_FIXED', vertexIds: ['A', 'B', 'C'] },
-      { id: 'F_MOVING', vertexIds: ['D', 'E', 'G'] },
-      { id: 'F_BRIDGE', vertexIds: ['B', 'D', 'G', 'C'] },
-    ],
+function replaceVertexPosition(
+  state: GeometryState,
+  id: VertexId,
+  delta: Point2D
+): GeometryState {
+  return createInitialGeometryState({
+    stateId: state.stateId,
+    version: state.version,
+    vertices: state.vertices.map((v) =>
+      v.id === id
+        ? { id: v.id, position: { x: v.position.x + delta.x, y: v.position.y + delta.y } }
+        : v
+    ),
+    edges: state.edges,
+    faces: state.faces,
   });
+}
 
-  const movingIds = ['D', 'E', 'G'];
-  const fixedIds = ['A', 'B', 'C'];
-  const line: LineNormalParams = { nx: 3, ny: -4, c: 5 };
+/** Independent reflection formula (unit-normal form, differs from L2's n/|n|^2 form). */
+function expectedReflection(p: Point2D, line: LineNormalParams): Point2D {
+  const norm = Math.hypot(line.nx, line.ny);
+  const ux = line.nx / norm;
+  const uy = line.ny / norm;
+  const signedDistance = ux * p.x + uy * p.y - line.c / norm;
+  return { x: p.x - 2 * signedDistance * ux, y: p.y - 2 * signedDistance * uy };
+}
 
+/** Exact membership test used for scenario construction: n·p = c, no epsilon. */
+function liesExactlyOnAxis(p: Point2D, line: LineNormalParams): boolean {
+  return line.nx * p.x + line.ny * p.y === line.c;
+}
+
+let reflectionRunCounter = 0;
+
+function runVerifiedReflection(
+  source: GeometryState,
+  line: LineNormalParams,
+  movingVertexIds: readonly VertexId[],
+  tag: string
+) {
+  const seq = ++reflectionRunCounter;
   const req = createOperationRequest({
-    operationRequestId: 'req-dist-partial-01',
-    sourceState: partialMesh,
+    operationRequestId: `req-232-${tag}-${seq}`,
+    sourceState: source,
     line,
-    movingVertexIds: movingIds,
+    movingVertexIds,
     timestamp: FIXED_TIMESTAMP,
   });
   const out = reflectAcrossLine({
     request: req,
-    sourceState: partialMesh,
+    sourceState: source,
     stepIndex: 0,
     timestamp: FIXED_TIMESTAMP,
   });
+  const claim = {
+    sourceState: source,
+    resultingState: out.resultingState,
+    operation: 'REFLECTION_ACROSS_LINE' as const,
+    parameters: out.traceEntry.parameters,
+    witness: out.witness,
+  };
+  const verdict = verifyResult(claim, req);
+  return { req, out, claim, verdict };
+}
 
-  assertTopologyPreserved(out.resultingState, partialMesh, {
-    property: 'Property D: Pairwise Distance Invariance (Partial)',
-    parameters: { line, movingIds, fixedIds },
-    sourceState: partialMesh,
-    expectedRelation: 'Topology and vertex identities preserved',
-  });
-
-  assertSubsetPairwiseDistancesPreserved(partialMesh, out.resultingState, movingIds, {
-    property: 'Property D: Pairwise Distance Invariance (Partial Moving)',
-    parameters: { line, movingIds },
-    sourceState: partialMesh,
-    expectedRelation: 'All unordered pairs within movingVertexIds preserve distance',
-  });
-
-  assertSubsetPairwiseDistancesPreserved(partialMesh, out.resultingState, fixedIds, {
-    property: 'Property D: Pairwise Distance Invariance (Partial Fixed)',
-    parameters: { line, fixedIds },
-    sourceState: partialMesh,
-    expectedRelation: 'All unordered pairs within fixedVertexIds preserve distance',
-  });
-
-  const verdict = verifyResult(
-    {
-      sourceState: partialMesh,
-      resultingState: out.resultingState,
-      operation: 'REFLECTION_ACROSS_LINE',
-      parameters: out.traceEntry.parameters,
-      witness: out.witness,
-    },
-    req
-  );
-  assert.equal(verdict.status, 'PASS');
-  assert.equal(verdict.predicates.lengthsPreserved, true);
-  assert.equal(verdict.predicates.fixedVerticesUnchanged, true);
-});
+function posMap(state: GeometryState): Map<VertexId, Point2D> {
+  return new Map(state.vertices.map((v) => [v.id, v.position]));
+}
 
 // ===========================================================================
-// Property E — Fixed Points on Reflection Axis: P ∈ L => R_L(P) = P
+// Property D — Pairwise Distance Invariance
 // ===========================================================================
 
-test('Property E1 (Fixed Points on Axis): single and multiple on-axis points across multiple axes stay unchanged while off-axis vertices reflect', () => {
-  interface AxisScenario {
+test('Property D (Distance Invariance): full reflection preserves all unordered vertex-pair distances, topology, and passes L7', () => {
+  const cases: readonly {
     readonly id: string;
+    readonly build: () => GeometryState;
     readonly line: LineNormalParams;
-    readonly state: GeometryState;
-    readonly onAxisVertexIds: readonly VertexId[];
-    readonly movingVertexIds: readonly VertexId[];
-    readonly expectedFixedIds: readonly VertexId[];
-  }
-
-  // Scenario 1: Diagonal x + y = 1 — two on-axis vertices (V3=(0,1), V1=(1,0)),
-  // one moving off-axis (V2=(1,1)), one fixed off-axis (V0=(0,0)).
-  // Put V3 in movingVertexIds and V1 in fixedVertexIds to test both classifications.
-  const sqDiag = makeSubdividedSquare('axis-sq-diag-v0', 0);
-
-  // Scenario 2: Oblique 3x - 4y = 5 — exact on-axis points:
-  //   A(3, 1) -> 3*3 - 4*1 = 5
-  //   B(-1, -2) -> 3*(-1) - 4*(-2) = -3 + 8 = 5
-  //   C(7, 4) -> 3*7 - 4*4 = 21 - 16 = 5
-  // Off-axis points:
-  //   M1(0, 2) -> moving
-  //   M2(5, -1) -> moving
-  const meshOblique = createInitialGeometryState({
-    stateId: 'axis-oblique-v0',
-    version: 0,
-    vertices: [
-      { id: 'A', position: { x: 3, y: 1 } },
-      { id: 'B', position: { x: -1, y: -2 } },
-      { id: 'C', position: { x: 7, y: 4 } },
-      { id: 'M1', position: { x: 0, y: 2 } },
-      { id: 'M2', position: { x: 5, y: -1 } },
-    ],
-    edges: [
-      { id: 'E_AB', startVertexId: 'A', endVertexId: 'B' },
-      { id: 'E_AC', startVertexId: 'A', endVertexId: 'C' },
-      { id: 'E_AM1', startVertexId: 'A', endVertexId: 'M1' },
-      { id: 'E_CM1', startVertexId: 'C', endVertexId: 'M1' },
-      { id: 'E_BM2', startVertexId: 'B', endVertexId: 'M2' },
-      { id: 'E_AM2', startVertexId: 'A', endVertexId: 'M2' },
-    ],
-    faces: [
-      { id: 'F_TOP', vertexIds: ['A', 'C', 'M1'] },
-      { id: 'F_BOT', vertexIds: ['B', 'A', 'M2'] },
-    ],
-  });
-
-  // Scenario 3: Line 2x + y = 0 — single on-axis vertex Q0(1, -2) listed as moving,
-  // plus off-axis moving triangle Q1(3, 2), Q2(-1, 4), Q3(2, 5).
-  const meshSingleAxisPt = createInitialGeometryState({
-    stateId: 'axis-single-v0',
-    version: 0,
-    vertices: [
-      { id: 'Q0', position: { x: 1, y: -2 } }, // 2*1 + (-2) = 0 (on axis)
-      { id: 'Q1', position: { x: 3, y: 2 } },
-      { id: 'Q2', position: { x: -1, y: 4 } },
-      { id: 'Q3', position: { x: 2, y: 5 } },
-    ],
-    edges: [
-      { id: 'E_01', startVertexId: 'Q0', endVertexId: 'Q1' },
-      { id: 'E_12', startVertexId: 'Q1', endVertexId: 'Q2' },
-      { id: 'E_20', startVertexId: 'Q2', endVertexId: 'Q0' },
-      { id: 'E_13', startVertexId: 'Q1', endVertexId: 'Q3' },
-      { id: 'E_32', startVertexId: 'Q3', endVertexId: 'Q2' },
-    ],
-    faces: [
-      { id: 'F_BASE', vertexIds: ['Q0', 'Q1', 'Q2'] },
-      { id: 'F_CAP', vertexIds: ['Q1', 'Q3', 'Q2'] },
-    ],
-  });
-
-  const scenarios: readonly AxisScenario[] = [
-    {
-      id: 'diag-mixed-on-axis',
-      line: { nx: 1, ny: 1, c: 1 },
-      state: sqDiag,
-      onAxisVertexIds: ['V3', 'V1'],
-      movingVertexIds: ['V2', 'V3'], // V3 is on-axis & moving; V1 is on-axis & fixed
-      expectedFixedIds: ['V0', 'V1'],
-    },
-    {
-      id: 'oblique-multiple-on-axis-moving',
-      line: { nx: 3, ny: -4, c: 5 },
-      state: meshOblique,
-      onAxisVertexIds: ['A', 'B', 'C'],
-      movingVertexIds: ['A', 'B', 'C', 'M1', 'M2'],
-      expectedFixedIds: [],
-    },
-    {
-      id: 'oblique-multiple-on-axis-fixed',
-      line: { nx: 3, ny: -4, c: 5 },
-      state: meshOblique,
-      onAxisVertexIds: ['A', 'B', 'C'],
-      movingVertexIds: ['M1', 'M2'],
-      expectedFixedIds: ['A', 'B', 'C'],
-    },
-    {
-      id: 'single-on-axis-point-moving',
-      line: { nx: 2, ny: 1, c: 0 },
-      state: meshSingleAxisPt,
-      onAxisVertexIds: ['Q0'],
-      movingVertexIds: ['Q0', 'Q1', 'Q2', 'Q3'],
-      expectedFixedIds: [],
-    },
+  }[] = [
+    { id: 'square-oblique', build: () => makeSubdividedSquare('d-sq-v0', 0), line: { nx: 3, ny: -4, c: 5 } },
+    { id: 'square-diagonal', build: () => makeSubdividedSquare('d-sq2-v0', 0), line: { nx: 1, ny: -1, c: 0 } },
+    { id: 'mesh-oblique-negative', build: () => makeAsymmetricPolygonMesh('d-mesh-v0', 0), line: { nx: -2.5, ny: 1.75, c: -3.25 } },
+    { id: 'mesh-vertical', build: () => makeAsymmetricPolygonMesh('d-mesh2-v0', 0), line: { nx: 1, ny: 0, c: -1.5 } },
   ];
 
-  for (const sc of scenarios) {
-    const req = createOperationRequest({
-      operationRequestId: `req-fixedpt-${sc.id}`,
-      sourceState: sc.state,
-      line: sc.line,
-      movingVertexIds: sc.movingVertexIds,
-      timestamp: FIXED_TIMESTAMP,
-    });
-    assert.deepEqual(req.fixedVertexIds, sc.expectedFixedIds);
+  for (const tc of cases) {
+    const s0 = tc.build();
+    const allIds = s0.vertices.map((v) => v.id);
+    const { out, verdict } = runVerifiedReflection(s0, tc.line, allIds, `D-${tc.id}`);
 
-    const out = reflectAcrossLine({
-      request: req,
-      sourceState: sc.state,
-      stepIndex: 0,
-      timestamp: FIXED_TIMESTAMP,
-    });
+    assert.equal(verdict.status, 'PASS', `L7 failed for ${tc.id}: ${verdict.diagnostics.join('; ')}`);
+    assert.equal(verdict.predicates.lengthsPreserved, true);
+    assert.ok(verdict.residuals.maxLengthError <= DEFAULT_VERIFIER_TOLERANCES.epsilon);
 
-    assert.deepEqual(out.witness.fixedVertexIds, sc.expectedFixedIds);
-    assert.deepEqual(
-      out.traceEntry.parameters.fixedVertexIds,
-      sc.expectedFixedIds
-    );
-    assertTopologyPreserved(out.resultingState, sc.state, {
-      property: 'Property E: Fixed Points on Reflection Axis',
-      parameters: { scenario: sc.id, line: sc.line },
-      sourceState: sc.state,
-      expectedRelation: 'Vertex IDs and topology preserved',
+    // Same IDs, same order, same topology.
+    assertTopologyPreserved(out.resultingState, s0, {
+      property: 'Property D',
+      parameters: { caseId: tc.id, line: tc.line },
+      sourceState: s0,
+      expectedRelation: 'IDs, edges, faces unchanged',
     });
 
-    const movingSet = new Set(sc.movingVertexIds);
-    const onAxisSet = new Set(sc.onAxisVertexIds);
+    const n = allIds.length;
+    const { violations, pairsCompared } = checkPairwiseDistances(s0, out.resultingState, allIds);
+    assert.equal(pairsCompared, (n * (n - 1)) / 2, `Not all unordered pairs compared for ${tc.id}`);
+    assert.deepEqual(violations, [], `Distance invariance violated for ${tc.id}: ${JSON.stringify(violations)}`);
 
-    for (const v0 of sc.state.vertices) {
-      const v1 = out.resultingState.vertices.find((v) => v.id === v0.id);
-      assert.ok(v1, `Missing vertex ${v0.id} in resultingState`);
-
-      if (onAxisSet.has(v0.id)) {
-        const axisResidual = Math.hypot(
-          v1.position.x - v0.position.x,
-          v1.position.y - v0.position.y
-        );
-        assert.ok(
-          axisResidual <= METAMORPHIC_COORD_TOLERANCE,
-          `On-axis vertex ${v0.id} in ${sc.id} moved by ${axisResidual} > ${METAMORPHIC_COORD_TOLERANCE}`
-        );
-      } else if (movingSet.has(v0.id)) {
-        const expectedP = computeExpectedReflectionPoint(v0.position, sc.line);
-        const moveResidual = Math.hypot(
-          v1.position.x - expectedP.x,
-          v1.position.y - expectedP.y
-        );
-        assert.ok(
-          moveResidual <= METAMORPHIC_COORD_TOLERANCE,
-          `Off-axis moving vertex ${v0.id} in ${sc.id} mismatch: residual=${moveResidual}`
-        );
-        const movedDistance = Math.hypot(
-          v1.position.x - v0.position.x,
-          v1.position.y - v0.position.y
-        );
-        assert.ok(
-          movedDistance > 1e-3,
-          `Off-axis moving vertex ${v0.id} was expected to reflect away from start`
-        );
-      }
-    }
-
-    const verdict = verifyResult(
-      {
-        sourceState: sc.state,
-        resultingState: out.resultingState,
-        operation: 'REFLECTION_ACROSS_LINE',
-        parameters: out.traceEntry.parameters,
-        witness: out.witness,
-      },
-      req
+    // Non-adjacent pairs must be included: confirm at least one pair has no edge between it.
+    const adjacent = new Set(
+      s0.edges.flatMap((e) => [
+        `${e.startVertexId}|${e.endVertexId}`,
+        `${e.endVertexId}|${e.startVertexId}`,
+      ])
     );
-    assert.equal(
-      verdict.status,
-      'PASS',
-      `L7 rejected valid Property E case ${sc.id}: ${verdict.diagnostics.join('; ')}`
-    );
-    assert.equal(verdict.predicates.requestBound, true);
-    assert.equal(verdict.predicates.witnessBound, true);
-    assert.equal(verdict.predicates.fixedVerticesUnchanged, true);
-    assert.equal(verdict.predicates.idsPreserved, true);
+    let nonAdjacentPairs = 0;
+    for (let i = 0; i < n; i++)
+      for (let j = i + 1; j < n; j++)
+        if (!adjacent.has(`${allIds[i]}|${allIds[j]}`)) nonAdjacentPairs++;
+    assert.ok(nonAdjacentPairs > 0, `Case ${tc.id} has no non-adjacent pairs`);
   }
 });
 
-test('Property E2 (No Implicit Axis Snapping): vertex 1e-9 off axis in movingVertexIds reflects across axis rather than snapping to fixed', () => {
-  const nearOffset = 1e-9;
-  // Axis: y = 0 (nx = 0, ny = 1, c = 0). P_NEAR is at (2, 1e-9) — NOT on the axis.
-  const state = createInitialGeometryState({
-    stateId: 'near-axis-v0',
-    version: 0,
-    vertices: [
-      { id: 'P_NEAR', position: { x: 2, y: nearOffset } },
-      { id: 'P_OFF1', position: { x: 0, y: 2 } },
-      { id: 'P_OFF2', position: { x: 4, y: 2 } },
-    ],
-    edges: [
-      { id: 'E1', startVertexId: 'P_NEAR', endVertexId: 'P_OFF1' },
-      { id: 'E2', startVertexId: 'P_OFF1', endVertexId: 'P_OFF2' },
-      { id: 'E3', startVertexId: 'P_OFF2', endVertexId: 'P_NEAR' },
-    ],
-    faces: [{ id: 'F0', vertexIds: ['P_NEAR', 'P_OFF1', 'P_OFF2'] }],
-  });
+test('Property D (Distance Invariance): partial reflection preserves distances within the moving set and within the fixed set', () => {
+  // Cross pairs (moving, fixed) are intentionally NOT asserted: a partial reflection
+  // is not an isometry of the whole vertex set.
+  const s0 = makeAsymmetricPolygonMesh('d-part-v0', 0);
+  const line: LineNormalParams = { nx: -2.5, ny: 1.75, c: -3.25 };
+  const moving = ['P1', 'P2', 'P3'];
+  const fixed = ['P0', 'P4'];
+  const { out, verdict } = runVerifiedReflection(s0, line, moving, 'D-partial');
 
-  const line: LineNormalParams = { nx: 0, ny: 1, c: 0 };
-  const req = createOperationRequest({
-    operationRequestId: 'req-near-axis-no-snap',
-    sourceState: state,
-    line,
-    movingVertexIds: ['P_NEAR', 'P_OFF1', 'P_OFF2'],
-    timestamp: FIXED_TIMESTAMP,
-  });
-  assert.deepEqual(req.fixedVertexIds, []);
+  assert.equal(verdict.status, 'PASS', verdict.diagnostics.join('; '));
+  assert.deepEqual([...out.witness.movingVertexIds].sort(), [...moving].sort());
+  assert.deepEqual([...out.witness.fixedVertexIds].sort(), [...fixed].sort());
 
-  const out = reflectAcrossLine({
-    request: req,
-    sourceState: state,
-    timestamp: FIXED_TIMESTAMP,
-  });
-
-  const pNearAfter = out.resultingState.vertices.find(
-    (v) => v.id === 'P_NEAR'
-  )!.position;
-  // Reflected y must be -1e-9 (not snapped to +1e-9 or 0)
-  const errFromExpectedReflected = Math.hypot(
-    pNearAfter.x - 2,
-    pNearAfter.y - -nearOffset
-  );
-  assert.ok(errFromExpectedReflected <= 1e-15);
-  assert.ok(Math.abs(pNearAfter.y - nearOffset) > 1.5e-9);
-
-  const verdict = verifyResult(
-    {
-      sourceState: state,
-      resultingState: out.resultingState,
-      operation: 'REFLECTION_ACROSS_LINE',
-      parameters: out.traceEntry.parameters,
-      witness: out.witness,
-    },
-    req
-  );
-  assert.equal(verdict.status, 'PASS');
+  const mm = checkPairwiseDistances(s0, out.resultingState, moving);
+  const ff = checkPairwiseDistances(s0, out.resultingState, fixed);
+  assert.equal(mm.pairsCompared, 3);
+  assert.equal(ff.pairsCompared, 1);
+  assert.deepEqual(mm.violations, []);
+  assert.deepEqual(ff.violations, []);
 });
 
 // ===========================================================================
-// Phase 2.3.2 Negative Controls (Property D & Property E)
+// Property E — Fixed Points on the Reflection Axis
 // ===========================================================================
 
-test('Negative Control (Property D): corrupted coordinate breaks pairwise distance & forged claimedResiduals=0 is rejected by L7', () => {
-  const s0 = makeAsymmetricPolygonMesh('neg-dist-v0', 0);
-  const allIds = s0.vertices.map((v) => v.id);
-  const line: LineNormalParams = { nx: 3, ny: -4, c: 5 };
-
-  const req = createOperationRequest({
-    operationRequestId: 'req-neg-dist-01',
-    sourceState: s0,
-    line,
-    movingVertexIds: allIds,
-    timestamp: FIXED_TIMESTAMP,
+function makeAxisScenarioState(
+  stateId: string,
+  vertices: readonly { id: string; x: number; y: number }[],
+  triangle: readonly [VertexId, VertexId, VertexId]
+): GeometryState {
+  return createInitialGeometryState({
+    stateId,
+    version: 0,
+    vertices: vertices.map((v) => ({ id: v.id, position: { x: v.x, y: v.y } })),
+    edges: [
+      { id: 'T0', startVertexId: triangle[0], endVertexId: triangle[1] },
+      { id: 'T1', startVertexId: triangle[1], endVertexId: triangle[2] },
+      { id: 'T2', startVertexId: triangle[2], endVertexId: triangle[0] },
+    ],
+    faces: [{ id: 'FT', vertexIds: [...triangle] }],
   });
-  const out = reflectAcrossLine({
-    request: req,
-    sourceState: s0,
-    timestamp: FIXED_TIMESTAMP,
-  });
+}
 
-  // Shift vertex P3 by +2e-3 along x in resultingState & witness.vertexPairs and forge claimedResiduals=0
-  const corrupted = createInitialGeometryState({
-    stateId: out.resultingState.stateId,
-    version: out.resultingState.version,
-    vertices: out.resultingState.vertices.map((v) =>
-      v.id === 'P3'
-        ? { id: v.id, position: { x: v.position.x + 2e-3, y: v.position.y } }
-        : v
-    ),
-    edges: out.resultingState.edges,
-    faces: out.resultingState.faces,
-  });
+interface AxisScenario {
+  readonly id: string;
+  readonly line: LineNormalParams;
+  readonly state: GeometryState;
+  readonly onAxisFixed: readonly VertexId[];
+  readonly onAxisMoving: readonly VertexId[];
+  readonly offAxisMoving: readonly VertexId[];
+}
 
-  assert.throws(
-    () =>
-      assertSubsetPairwiseDistancesPreserved(s0, corrupted, allIds, {
-        property: 'Negative Control D',
-        parameters: { line },
-        sourceState: s0,
-        expectedRelation: 'Distance invariance',
-      }),
-    /Pairwise distance violation/
+function buildAxisScenarios(): AxisScenario[] {
+  return [
+    {
+      id: 'single-point-on-vertical-axis',
+      line: { nx: 1, ny: 0, c: 2 },
+      state: makeAxisScenarioState(
+        'e-single-v0',
+        [
+          { id: 'O1', x: 2, y: 0.5 },
+          { id: 'M1', x: 0.5, y: 1 },
+          { id: 'M2', x: 5, y: -2 },
+        ],
+        ['O1', 'M1', 'M2']
+      ),
+      onAxisFixed: ['O1'],
+      onAxisMoving: [],
+      offAxisMoving: ['M1', 'M2'],
+    },
+    {
+      id: 'multiple-points-on-diagonal-axis',
+      line: { nx: 1, ny: -1, c: 0 },
+      state: makeAxisScenarioState(
+        'e-diag-v0',
+        [
+          { id: 'O1', x: 0, y: 0 },
+          { id: 'O2', x: 2, y: 2 },
+          { id: 'O3', x: -1.5, y: -1.5 },
+          { id: 'M1', x: 3, y: 1 },
+          { id: 'M2', x: -2, y: 0.5 },
+        ],
+        ['O1', 'M1', 'M2']
+      ),
+      onAxisFixed: ['O1', 'O2', 'O3'],
+      onAxisMoving: [],
+      offAxisMoving: ['M1', 'M2'],
+    },
+    {
+      id: 'multiple-points-on-oblique-axis',
+      line: { nx: 3, ny: 4, c: 5 },
+      state: makeAxisScenarioState(
+        'e-obl-v0',
+        [
+          { id: 'O1', x: 3, y: -1 },
+          { id: 'O2', x: -1, y: 2 },
+          { id: 'O3', x: 7, y: -4 },
+          { id: 'M1', x: 0, y: 0 },
+          { id: 'M2', x: 4, y: 3 },
+          { id: 'M3', x: -3, y: -2 },
+        ],
+        ['O1', 'M1', 'M2']
+      ),
+      onAxisFixed: ['O1', 'O2', 'O3'],
+      onAxisMoving: [],
+      offAxisMoving: ['M1', 'M2', 'M3'],
+    },
+    {
+      id: 'on-axis-vertices-listed-as-moving',
+      line: { nx: 1, ny: -1, c: 0 },
+      state: makeAxisScenarioState(
+        'e-onmove-v0',
+        [
+          { id: 'O1', x: 1, y: 1 },
+          { id: 'O2', x: -0.5, y: -0.5 },
+          { id: 'M1', x: 4, y: 0.25 },
+          { id: 'F1', x: -1, y: 3 },
+        ],
+        ['O1', 'M1', 'F1']
+      ),
+      onAxisFixed: [],
+      onAxisMoving: ['O1', 'O2'],
+      offAxisMoving: ['M1'],
+    },
+  ];
+}
+
+test('Property E (Fixed Points): vertices exactly on the axis are unchanged; off-axis vertices are reflected; L2 and L7 agree', () => {
+  const scenarios = buildAxisScenarios();
+  assert.ok(new Set(scenarios.map((s) => JSON.stringify(s.line))).size >= 3, 'need >= 2 distinct axes');
+
+  for (const sc of scenarios) {
+    const src = posMap(sc.state);
+
+    // Scenario sanity: exact membership by construction, not by proximity.
+    for (const id of [...sc.onAxisFixed, ...sc.onAxisMoving]) {
+      assert.ok(liesExactlyOnAxis(src.get(id)!, sc.line), `${sc.id}: ${id} must lie exactly on axis`);
+    }
+    for (const id of sc.offAxisMoving) {
+      assert.ok(!liesExactlyOnAxis(src.get(id)!, sc.line), `${sc.id}: ${id} must be off axis`);
+    }
+
+    const moving = [...sc.onAxisMoving, ...sc.offAxisMoving];
+    const expectedFixed = sc.state.vertices
+      .map((v) => v.id)
+      .filter((id) => !moving.includes(id));
+    const { out, verdict } = runVerifiedReflection(sc.state, sc.line, moving, `E-${sc.id}`);
+
+    // L7 acceptance.
+    assert.equal(verdict.status, 'PASS', `${sc.id}: ${verdict.diagnostics.join('; ')}`);
+    assert.equal(verdict.predicates.fixedVerticesUnchanged, true);
+    assert.equal(verdict.predicates.idsPreserved, true);
+
+    // Classification: the contract uses the explicit request partition, nothing else.
+    assert.deepEqual(
+      [...out.witness.fixedVertexIds].sort(),
+      [...expectedFixed].sort(),
+      `${sc.id}: witness.fixedVertexIds mismatch`
+    );
+    assert.deepEqual([...out.witness.movingVertexIds].sort(), [...moving].sort());
+    assert.deepEqual([...out.traceEntry.parameters.fixedVertexIds].sort(), [...expectedFixed].sort());
+
+    assertTopologyPreserved(out.resultingState, sc.state, {
+      property: 'Property E',
+      parameters: { scenarioId: sc.id, line: sc.line },
+      sourceState: sc.state,
+      expectedRelation: 'IDs, edges, faces unchanged',
+    });
+
+    const res = posMap(out.resultingState);
+    for (const id of [...sc.onAxisFixed, ...sc.onAxisMoving]) {
+      const before = src.get(id)!;
+      const after = res.get(id)!;
+      assert.ok(
+        Math.hypot(after.x - before.x, after.y - before.y) <= METAMORPHIC_COORD_TOLERANCE,
+        `${sc.id}: axis vertex ${id} moved`
+      );
+      // Dyadic scenario coordinates make L2's zero-offset path exact, so membership holds exactly.
+      assert.ok(liesExactlyOnAxis(after, sc.line), `${sc.id}: axis vertex ${id} left the axis`);
+    }
+    for (const id of sc.offAxisMoving) {
+      const exp = expectedReflection(src.get(id)!, sc.line);
+      const after = res.get(id)!;
+      assert.ok(
+        Math.hypot(after.x - exp.x, after.y - exp.y) <= METAMORPHIC_COORD_TOLERANCE,
+        `${sc.id}: off-axis vertex ${id} not reflected correctly`
+      );
+      assert.notDeepEqual(after, src.get(id), `${sc.id}: off-axis vertex ${id} did not move`);
+    }
+  }
+});
+
+test('Property E (Contract): a vertex merely near the axis is NOT snapped or auto-classified as fixed', () => {
+  const line: LineNormalParams = { nx: 1, ny: 0, c: 2 };
+  const nearOffset = 1e-9; // far below L7 epsilon (1e-7), but not on the axis.
+  const s0 = makeAxisScenarioState(
+    'e-near-v0',
+    [
+      { id: 'N1', x: 2 + nearOffset, y: 0 },
+      { id: 'M1', x: 0, y: 1 },
+      { id: 'O1', x: 2, y: 3 },
+    ],
+    ['N1', 'M1', 'O1']
   );
+  const { out, verdict } = runVerifiedReflection(s0, line, ['N1', 'M1'], 'E-near');
+
+  assert.equal(verdict.status, 'PASS', verdict.diagnostics.join('; '));
+  assert.deepEqual([...out.witness.movingVertexIds].sort(), ['M1', 'N1']);
+  assert.deepEqual([...out.witness.fixedVertexIds], ['O1']);
+
+  const n1 = posMap(out.resultingState).get('N1')!;
+  // N1 is reflected to 2 - 1e-9: displacement 2e-9, not collapsed to the axis.
+  assert.ok(Math.abs(n1.x - (2 - nearOffset)) <= METAMORPHIC_COORD_TOLERANCE);
+  assert.ok(n1.x < 2, 'near-axis vertex must cross the axis, not be snapped to it');
+});
+
+// ===========================================================================
+// Phase 2.3.2 Negative Controls
+// ===========================================================================
+
+test('Negative Control (D): a modified reflected coordinate violates distance invariance and is rejected by L7', () => {
+  const s0 = makeAsymmetricPolygonMesh('negD-v0', 0);
+  const line: LineNormalParams = { nx: 3, ny: -4, c: 5 };
+  const allIds = s0.vertices.map((v) => v.id);
+  const { req, out, claim, verdict } = runVerifiedReflection(s0, line, allIds, 'negD');
+  assert.equal(verdict.status, 'PASS');
+
+  const delta: Point2D = { x: 2e-3, y: 1e-3 };
+  const corrupted = replaceVertexPosition(out.resultingState, 'P3', delta);
+
+  // The metamorphic checker itself detects it, and only on pairs involving P3.
+  const { violations } = checkPairwiseDistances(s0, corrupted, allIds);
+  assert.ok(violations.length > 0, 'distance invariance checker missed the corruption');
+  assert.ok(violations.every((v) => v.a === 'P3' || v.b === 'P3'));
+  assert.ok(violations.every((v) => v.error > DEFAULT_VERIFIER_TOLERANCES.epsilon / 100));
+
+  // (a) State corrupted, witness left honest: L7 must cross-check state against witness.
+  const stateOnly = verifyResult({ ...claim, resultingState: corrupted }, req);
+  assert.equal(stateOnly.status, 'FAIL', 'state-only corruption accepted');
+
+  // (b) State and witness corrupted consistently: L7 must still reject via axiom residuals.
+  const consistentWitness: ReflectionWitness = {
+    ...out.witness,
+    vertexPairs: out.witness.vertexPairs.map((p) =>
+      p.vertexId === 'P3' ? { ...p, pPrime: { x: p.pPrime.x + delta.x, y: p.pPrime.y + delta.y } } : p
+    ),
+  };
+  const consistent = verifyResult(
+    { ...claim, resultingState: corrupted, witness: consistentWitness },
+    req
+  );
+  assert.equal(consistent.status, 'FAIL', 'consistent corruption accepted');
+  assert.equal(consistent.predicates.axiomsSatisfied, false);
+});
+
+test('Negative Control (E): a vertex claimed fixed/on-axis but displaced is rejected by L7', () => {
+  const sc = buildAxisScenarios()[1]!; // multiple points on diagonal axis, O1..O3 fixed
+  const moving = [...sc.onAxisMoving, ...sc.offAxisMoving];
+  const { req, out, claim, verdict } = runVerifiedReflection(sc.state, sc.line, moving, 'negE-fixed');
+  assert.equal(verdict.status, 'PASS');
+
+  // O2 moved off the axis by 1e-3 while still declared fixed.
+  const displaced = replaceVertexPosition(out.resultingState, 'O2', { x: 1e-3, y: 0 });
+  const moved = posMap(displaced).get('O2')!;
+  assert.ok(!liesExactlyOnAxis(moved, sc.line), 'corrupted vertex must be off axis');
+
+  const bad = verifyResult({ ...claim, resultingState: displaced }, req);
+  assert.equal(bad.status, 'FAIL');
+  assert.equal(bad.predicates.fixedVerticesUnchanged, false);
+  assert.ok(bad.residuals.maxFixedDisplacement > DEFAULT_VERIFIER_TOLERANCES.epsilon);
+
+  // Also corrupt the process-level trace.
+  const processVerdict = verifyProcess([{ ...out.traceEntry, resultingState: displaced }], [req]);
+  assert.equal(processVerdict.status, 'FAIL');
+});
+
+test('Negative Control (E): an on-axis vertex listed as moving but displaced is rejected by L7', () => {
+  const sc = buildAxisScenarios()[3]!;
+  const moving = [...sc.onAxisMoving, ...sc.offAxisMoving];
+  const { req, out, claim, verdict } = runVerifiedReflection(sc.state, sc.line, moving, 'negE-moving');
+  assert.equal(verdict.status, 'PASS');
+
+  const displaced = replaceVertexPosition(out.resultingState, 'O1', { x: 1e-3, y: 0 });
+  const bad = verifyResult({ ...claim, resultingState: displaced }, req);
+  assert.equal(bad.status, 'FAIL');
 
   const forgedWitness: ReflectionWitness = {
     ...out.witness,
-    vertexPairs: out.witness.vertexPairs.map((pair) =>
-      pair.vertexId === 'P3'
-        ? {
-            ...pair,
-            pPrime: { x: pair.pPrime.x + 2e-3, y: pair.pPrime.y },
-          }
-        : pair
+    vertexPairs: out.witness.vertexPairs.map((p) =>
+      p.vertexId === 'O1' ? { ...p, pPrime: { x: p.pPrime.x + 1e-3, y: p.pPrime.y } } : p
+    ),
+  };
+  const bad2 = verifyResult({ ...claim, resultingState: displaced, witness: forgedWitness }, req);
+  assert.equal(bad2.status, 'FAIL');
+  assert.equal(bad2.predicates.axiomsSatisfied, false);
+});
+
+test('Negative Control (forged claimedResiduals): L7 ignores claimed residuals in both directions', () => {
+  const s0 = makeSubdividedSquare('negR-v0', 0);
+  const line: LineNormalParams = { nx: 3, ny: -4, c: 5 };
+  const allIds = s0.vertices.map((v) => v.id);
+  const { req, out, claim, verdict: honest } = runVerifiedReflection(s0, line, allIds, 'negR');
+  assert.equal(honest.status, 'PASS');
+
+  // (1) Corrupt geometry (distance invariance broken) + forge residuals to 0 => still FAIL.
+  const delta: Point2D = { x: 5e-3, y: -5e-3 };
+  const corrupted = replaceVertexPosition(out.resultingState, 'V2', delta);
+  assert.ok(checkPairwiseDistances(s0, corrupted, allIds).violations.length > 0);
+  const forgedZero: ReflectionWitness = {
+    ...out.witness,
+    vertexPairs: out.witness.vertexPairs.map((p) =>
+      p.vertexId === 'V2' ? { ...p, pPrime: { x: p.pPrime.x + delta.x, y: p.pPrime.y + delta.y } } : p
     ),
     claimedResiduals: { maxMidpointError: 0, maxCollinearityError: 0 },
   };
-
-  const verdict = verifyResult(
-    {
-      sourceState: s0,
-      resultingState: corrupted,
-      operation: 'REFLECTION_ACROSS_LINE',
-      parameters: out.traceEntry.parameters,
-      witness: forgedWitness,
-    },
+  const forgedVerdict = verifyResult(
+    { ...claim, resultingState: corrupted, witness: forgedZero },
     req
   );
-  assert.equal(verdict.status, 'FAIL');
-  assert.equal(verdict.predicates.axiomsSatisfied, false);
-  assert.equal(verdict.predicates.lengthsPreserved, false);
-});
-
-test('Negative Control (Property E): displaced on-axis vertex (both fixed & moving) is rejected by L7 despite forged claimedResiduals=0; huge forged residuals do not fail valid result', () => {
-  const s0 = makeSubdividedSquare('neg-axis-v0', 0);
-  const line: LineNormalParams = { nx: 1, ny: 1, c: 1 };
-
-  // Case 1: On-axis vertex V3 classified as fixed, then displaced by 1e-3
-  const reqFixed = createOperationRequest({
-    operationRequestId: 'req-neg-axis-fixed',
-    sourceState: s0,
-    line,
-    movingVertexIds: ['V2'], // V3 is fixed and on x + y = 1
-    timestamp: FIXED_TIMESTAMP,
-  });
-  const outFixed = reflectAcrossLine({
-    request: reqFixed,
-    sourceState: s0,
-    timestamp: FIXED_TIMESTAMP,
-  });
-
-  const displacedFixed = createInitialGeometryState({
-    stateId: outFixed.resultingState.stateId,
-    version: outFixed.resultingState.version,
-    vertices: outFixed.resultingState.vertices.map((v) =>
-      v.id === 'V3'
-        ? { id: v.id, position: { x: v.position.x + 1e-3, y: v.position.y } }
-        : v
-    ),
-    edges: outFixed.resultingState.edges,
-    faces: outFixed.resultingState.faces,
-  });
-  const forgedFixedWitness: ReflectionWitness = {
-    ...outFixed.witness,
-    claimedResiduals: { maxMidpointError: 0, maxCollinearityError: 0 },
-  };
-
-  const fixedVerdict = verifyResult(
-    {
-      sourceState: s0,
-      resultingState: displacedFixed,
-      operation: 'REFLECTION_ACROSS_LINE',
-      parameters: outFixed.traceEntry.parameters,
-      witness: forgedFixedWitness,
-    },
-    reqFixed
+  assert.equal(forgedVerdict.status, 'FAIL');
+  assert.ok(
+    forgedVerdict.residuals.midpointError > DEFAULT_VERIFIER_TOLERANCES.epsilon ||
+      forgedVerdict.residuals.collinearityError > DEFAULT_VERIFIER_TOLERANCES.epsilon,
+    'L7 must report independently recomputed residuals, not the forged zeros'
   );
-  assert.equal(fixedVerdict.status, 'FAIL');
-  assert.equal(fixedVerdict.predicates.fixedVerticesUnchanged, false);
 
-  // Case 2: On-axis vertex V3 classified as moving, then displaced by 1e-3 off the axis
-  const reqMoving = createOperationRequest({
-    operationRequestId: 'req-neg-axis-moving',
-    sourceState: s0,
-    line,
-    movingVertexIds: ['V2', 'V3'],
-    timestamp: FIXED_TIMESTAMP,
-  });
-  const outMoving = reflectAcrossLine({
-    request: reqMoving,
-    sourceState: s0,
-    timestamp: FIXED_TIMESTAMP,
-  });
-
-  const displacedMoving = createInitialGeometryState({
-    stateId: outMoving.resultingState.stateId,
-    version: outMoving.resultingState.version,
-    vertices: outMoving.resultingState.vertices.map((v) =>
-      v.id === 'V3'
-        ? {
-            id: v.id,
-            position: { x: v.position.x + 1e-3, y: v.position.y + 1e-3 },
-          }
-        : v
-    ),
-    edges: outMoving.resultingState.edges,
-    faces: outMoving.resultingState.faces,
-  });
-  const forgedMovingWitness: ReflectionWitness = {
-    ...outMoving.witness,
-    vertexPairs: outMoving.witness.vertexPairs.map((pair) =>
-      pair.vertexId === 'V3'
-        ? {
-            ...pair,
-            pPrime: { x: pair.pPrime.x + 1e-3, y: pair.pPrime.y + 1e-3 },
-          }
-        : pair
-    ),
-    claimedResiduals: { maxMidpointError: 0, maxCollinearityError: 0 },
-  };
-
-  const movingVerdict = verifyResult(
-    {
-      sourceState: s0,
-      resultingState: displacedMoving,
-      operation: 'REFLECTION_ACROSS_LINE',
-      parameters: outMoving.traceEntry.parameters,
-      witness: forgedMovingWitness,
-    },
-    reqMoving
-  );
-  assert.equal(movingVerdict.status, 'FAIL');
-  assert.equal(movingVerdict.predicates.axiomsSatisfied, false);
-
-  // Case 3: Huge forged claimedResiduals on mathematically valid reflection must still PASS
-  const hugeClaimedWitness: ReflectionWitness = {
-    ...outMoving.witness,
+  // (2) Correct geometry + absurdly large claimed residuals => verdict unchanged (PASS).
+  const forgedHuge: ReflectionWitness = {
+    ...out.witness,
     claimedResiduals: { maxMidpointError: 1e6, maxCollinearityError: 1e6 },
   };
-  const validDespiteForgedVerdict = verifyResult(
-    {
-      sourceState: s0,
-      resultingState: outMoving.resultingState,
-      operation: 'REFLECTION_ACROSS_LINE',
-      parameters: outMoving.traceEntry.parameters,
-      witness: hugeClaimedWitness,
-    },
-    reqMoving
-  );
-  assert.equal(validDespiteForgedVerdict.status, 'PASS');
-  assert.ok(validDespiteForgedVerdict.residuals.midpointError <= 1e-12);
+  const hugeVerdict = verifyResult({ ...claim, witness: forgedHuge }, req);
+  assert.equal(hugeVerdict.status, 'PASS');
+  assert.equal(hugeVerdict.residuals.midpointError, honest.residuals.midpointError);
+  assert.equal(hugeVerdict.residuals.collinearityError, honest.residuals.collinearityError);
 });
-
