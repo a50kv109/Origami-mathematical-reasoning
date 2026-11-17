@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### Documentation & Architecture Closure (Phase 3.1)
+- Разработан и зафиксирован пакет документов **Phase 3.1 Minimal Agent Entry Contract (MAEC)** без изменения исходного кода математического ядра (`src/core/*`) и тестов:
+  - `OMR_PHASE_3_1_MINIMAL_AGENT_ENTRY_CONTRACT.md` — канонический 6-стадийный контракт взаимодействия агентов (`DISCOVER` → `RECEIVE`), строгая классификация полей `EXISTING` / `DERIVED` / `PROPOSED`, правила валидации IEEE-754 и разграничение статусов выполнения (`EXECUTED`) и сертификации (`VERIFIED`);
+  - `OMR_PHASE_3_1_CAPABILITY_DISCOVERY_SPEC.md` — манифест возможностей (Zero-Hallucination Policy), публикация численных ограничений ядра и реестр неподдерживаемых операций (`FOLD_3D`, `FACE_SUBDIVISION`, `CURVED_CREASE`) с кодами причин;
+  - `OMR_PHASE_3_1_AGENT_ENTRY_EXAMPLE.md` — воспроизводимый сквозной пример (диагональное складывание квадрата 100 мм), точные JSON-структуры запросов/ответов и 4 сценария негативного контроля;
+  - `OMR_PHASE_3_1_IMPLEMENTATION_BOUNDARY.md` — 4-частная матрица архитектурных границ (ядро, адаптеры, решения владельца, вне рамок);
+  - `OMR_PHASE_3_1_FINAL_AUDIT_AND_CLOSURE.md` — итоговый паспорт независимого аудита документов Phase 3.1, подтверждение неизменности SHA-256 хешей ядра и готовности к публикации;
+  - `OMR_PROJECT_HANDOFF.md` — мастер-документ передачи контекста для независимых разработчиков и новых ИИ-агентов (*Producer claim ≠ Receiver truth*, *Execution ≠ Verification*).
+- Актуализирована навигация в `README.md`: добавлен раздел `10b` с маршрутом независимого исследователя (onboarding), пошаговым примером программного вызова ядра на TypeScript и синхронизацией дорожной карты (Phases 2.4–3.1).
+- Подтверждена неизменность ядра (`36` автотестов: `19` в `tests/contract02.test.ts` + `17` в `tests/metamorphic.test.ts`, 0 failures); статус `ROD-03` сохранен как `WAITING FOR EXPLICIT OWNER AUTHORIZATION`.
+
 ### Documentation
 - Выполнена консолидация документации `OMR Architecture Evolution Package v1.0` без изменения исходного кода, тестов, `Contract 02`, `Property F` и слоёв `L1–L7`: добавлены `OMR_DOCUMENTATION_INVENTORY.md`, `PROJECT_ARCHITECTURE_STATUS.md`, `OMR_ARCHITECTURE_EVOLUTION.md`, `OMR_ARCHITECTURE_MAP.md`, `OMR_ARCHITECTURE_DECISION_RECORD.md`, `OMR_RESEARCH_REGISTER.md`, `OMR_ARCHITECTURE_OPEN_QUESTIONS.md`, `OMR_DOCUMENTATION_CONSOLIDATION_REPORT.md`.
 - Зафиксирован исследовательский трек **`OMR — Integrated Engineering Reasoning Architecture`**, связывающий `OMR L1–L7`, `CRP-01 / MCAR` и `PWRP v1.1` с сохранением разделения реализованных, протестированных, документированных, предложенных и нерешённых положений.

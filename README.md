@@ -171,8 +171,12 @@ npm run clean
 | **Phase 2.1** | `Contract 02 v2` (`L2 ↔ L7`, `ReflectionWitness`, аксиоматический L7) | **Реализовано (`v0.1.0`)** |
 | **Phase 2.2** | `OperationRequest`, привязка `requestBound`, строгая проверка `stepIndex`, `"strict": true` в `tsconfig.json`, ESM `vite.config.ts`, 19 контрактных автотестов | **Реализовано (`CAPABILITY_GAP` отложен)** |
 | **Phase 2.3.1–2.3.2** | Метаморфное тестирование `Properties A–E` и ремедиация базового слоя `tests/metamorphic.test.ts` (32 → 36 тестов) | **Реализовано в тестах (`TESTED`)** |
-| **Phase 2.3.3** | Базовые `F1–F3`, `NC-F1..NC-F3` и Rotation Control в `tests/metamorphic.test.ts`; полная спецификация Варианта B (`tests/propertyF_v1.test.ts`, 6-уровневый классификатор, 15 мутаций) | **Частично в тестах (`F1–F3`); расширенный слой `DOCUMENTED/PROPOSED` (ожидает `ROD-03`)** |
-| **Phase 2.4 / 3** | Разрешение `D-1`–`D-5`, `AUD-C01` (`Face2D`), `Contract 01` (`L1 ↔ L2`, `FACE_SUBDIVISION`), формализация `CAPABILITY_GAP` | Запланировано |
+| **Phase 2.3.3** | Базовые `F1–F3`, `NC-F1..NC-F3` и Rotation Control в `tests/metamorphic.test.ts`; спецификация Варианта B (`tests/propertyF_v1.test.ts`, 15 мутаций) | **Частично в тестах (`F1–F3`); расширенный слой `DOCUMENTED/PROPOSED` (ожидает `ROD-03`)** |
+| **Phase 2.4–2.5** | Численное фальсификационное исследование (D-1..D-8, Shoelace, Candidate B) и доменная верификация | **Завершено исследовательской фиксацией** |
+| **Phase 2.6** | Независимый аудит архитектурной согласованности и документальной иерархии | **Завершено** |
+| **Phase 3.0** | Архитектура уровня интеграции агентов (Agent Integration Layer, AIL) | **Спроектировано** |
+| **Phase 3.1** | Минимальный контракт входа агента (MAEC), обнаружение возможностей и независимый аудит | **Спроектировано и закрыто аудитом** |
+| **Phase 3.2** | Минимальный локальный входной адаптер (`src/entry/*`, `submitAgentOperation`) | Запланировано к реализации |
 | **Phase 4** | Сквозной 2D MVP (`Квадрат → Подразделение → Отражение → TRACE → L7`) | Запланировано |
 | **Phase 5–7** | Слой `L3` (порядок слоёв), `L4` (3D-кинематика), `L6` (оптимизация), `L5` (криволинейные складки) | Запланировано |
 | **Phase 8** | Переносимый AI Reasoning Skill и проверенные адаптеры (`ToolAdapter`) | Запланировано |
@@ -198,10 +202,103 @@ npm run clean
 - [`OMR_ARCHITECTURE_MAP.md`](./OMR_ARCHITECTURE_MAP.md) — карта трёх областей знания (`L1–L7`, `CRP-01 / MCAR`, `PWRP v1.1`), четырёх областей корректности и исследовательской координации;
 - [`OMR_ARCHITECTURE_DECISION_RECORD.md`](./OMR_ARCHITECTURE_DECISION_RECORD.md) — реестр архитектурных решений и предложений с разграничением статусов;
 - [`OMR_RESEARCH_REGISTER.md`](./OMR_RESEARCH_REGISTER.md) и [`OMR_ARCHITECTURE_OPEN_QUESTIONS.md`](./OMR_ARCHITECTURE_OPEN_QUESTIONS.md) — реестр направлений `R-01..R-08`, дефектов `D-1..D-8` и нерешённых вопросов;
-- [`OMR_DOCUMENTATION_INVENTORY.md`](./OMR_DOCUMENTATION_INVENTORY.md) и [`DOCUMENTATION_RECONCILIATION_REPORT.md`](./DOCUMENTATION_RECONCILIATION_REPORT.md) — инвентаризация всех документов проекта и итоговый отчёт сверки расхождений.
+- [`OMR_DOCUMENTATION_INVENTORY.md`](./OMR_DOCUMENTATION_INVENTORY.md) и [`DOCUMENTATION_RECONCILIATION_REPORT.md`](./DOCUMENTATION_RECONCILIATION_REPORT.md) — инвентаризация всех документов проекта и итоговый отчёт сверки расхождений;
+- [`OMR_PHASE_2_4_2_5_RESEARCH_CONSOLIDATION.md`](./OMR_PHASE_2_4_2_5_RESEARCH_CONSOLIDATION.md) и [`OMR_PHASE_2_6_ARCHITECTURAL_DOCUMENTATION_AUDIT.md`](./OMR_PHASE_2_6_ARCHITECTURAL_DOCUMENTATION_AUDIT.md) — консолидация численных экспериментов и аудит документальной иерархии.
+
+---
+
+## 10b. Входной интерфейс агентов и маршрут независимого исследования (Phase 3.0–3.1)
+
+Для внешних ИИ-агентов (Gemini, Claude, GPT, локальные модели) и независимых исследователей разработан канонический входной контур OMR:
+
+### 1. Передача контекста новому агенту / инженеру (Project Handoff)
+- [**`OMR_PROJECT_HANDOFF.md`**](./OMR_PROJECT_HANDOFF.md) — **главный документ передачи контекста**. Содержит архитектурные аксиомы (*Producer claim ≠ Receiver truth*, *Execution ≠ Verification*), каталог дефектов `D-1..D-8`, нерешенные решения владельца и инструкцию по продолжению разработки без доступа к истории чата.
+
+### 2. Спецификации контракта входа агента (Phase 3.1)
+- [**`OMR_PHASE_3_1_MINIMAL_AGENT_ENTRY_CONTRACT.md`**](./OMR_PHASE_3_1_MINIMAL_AGENT_ENTRY_CONTRACT.md) — канонический 6-стадийный контракт взаимодействия (`DISCOVER` → `RECEIVE`), разделение полей `EXISTING` / `DERIVED` / `PROPOSED`, правила валидации IEEE-754 и разграничение статусов выполнения и верификации.
+- [**`OMR_PHASE_3_1_CAPABILITY_DISCOVERY_SPEC.md`**](./OMR_PHASE_3_1_CAPABILITY_DISCOVERY_SPEC.md) — манифест возможностей (Zero-Hallucination Policy), публикация численных ограничений и явный реестр неподдерживаемых операций (`FOLD_3D`, `FACE_SUBDIVISION`) с кодами причин.
+- [**`OMR_PHASE_3_1_AGENT_ENTRY_EXAMPLE.md`**](./OMR_PHASE_3_1_AGENT_ENTRY_EXAMPLE.md) — воспроизводимый сквозной пример (диагональное складывание квадрата 100 мм), полные структуры запросов/ответов и 4 сценария негативного контроля.
+- [**`OMR_PHASE_3_1_IMPLEMENTATION_BOUNDARY.md`**](./OMR_PHASE_3_1_IMPLEMENTATION_BOUNDARY.md) — 4-частная матрица границ: реализованное в ядре, требуемое в адаптерах, ожидающее решения владельца (`ROD-03`, `OD-01..04`) и находящееся вне рамок проекта.
+- [**`OMR_PHASE_3_1_FINAL_AUDIT_AND_CLOSURE.md`**](./OMR_PHASE_3_1_FINAL_AUDIT_AND_CLOSURE.md) — итоговый паспорт аудита Phase 3.1, подтверждение целостности ядра (`sha256`), гармонизация схем и готовность к публикации.
+
+### 3. Маршрут независимого исследователя (Auditor & Researcher Onboarding)
+
+Любой независимый разработчик или исследователь может воспроизвести и проверить математическое ядро OMR:
+
+```bash
+# 1. Клонирование и установка зависимостей
+git clone https://github.com/a50kv109/Origami-mathematical-reasoning.git
+cd Origami-mathematical-reasoning
+npm ci
+
+# 2. Запуск полного набора автотестов (36 тестов)
+npm test
+# Ожидаемый результат: 19 контрактных тестов (Contract 02 v2) + 17 метаморфных тестов (Properties A-F) проходят успешно (0 fail).
+
+# 3. Воспроизведение операции отражения через код (TypeScript/Node.js)
+```
+
+Пример программного вызова ядра без внешних адаптеров:
+
+```typescript
+import { createOperationRequest } from './src/core/operationRequest';
+import { createInitialGeometryState, reflectAcrossLine } from './src/core/l2GeometryEngine';
+import { verifyResult } from './src/core/l7IndependentVerifier';
+
+// 1. Исходное состояние
+const state0 = createInitialGeometryState({
+  vertices: [
+    { id: 'V0', position: { x: 0, y: 0 } },
+    { id: 'V1', position: { x: 100, y: 0 } },
+    { id: 'V2', position: { x: 100, y: 100 } },
+    { id: 'V3', position: { x: 0, y: 100 } }
+  ],
+  edges: [
+    { id: 'E0', startVertexId: 'V0', endVertexId: 'V1' },
+    { id: 'E1', startVertexId: 'V1', endVertexId: 'V2' },
+    { id: 'E2', startVertexId: 'V2', endVertexId: 'V3' },
+    { id: 'E3', startVertexId: 'V3', endVertexId: 'V0' },
+    { id: 'ED', startVertexId: 'V3', endVertexId: 'V1' }
+  ],
+  faces: [
+    { id: 'F0', vertexIds: ['V0', 'V1', 'V3'] },
+    { id: 'F1', vertexIds: ['V3', 'V2', 'V1'] }
+  ]
+});
+
+// 2. Доверенный запрос (отражение V2 относительно диагонали x + y = 100)
+const request = createOperationRequest({
+  sourceState: state0,
+  line: { nx: 1, ny: 1, c: 100 },
+  movingVertexIds: ['V2'],
+  fixedVertexIds: ['V0', 'V1', 'V3']
+});
+
+// 3. Вычисление геометрии (L2)
+const output = reflectAcrossLine({ request, sourceState: state0 });
+console.log('Resulting V2:', output.resultingState.vertices.find(v => v.id === 'V2')?.position);
+// Ожидается: { x: 0, y: 0 }
+
+// 4. Независимая проверка (L7 Zero-Trust)
+const verdict = verifyResult(
+  {
+    sourceState: state0,
+    resultingState: output.resultingState,
+    operation: 'REFLECTION_ACROSS_LINE',
+    parameters: request.parameters,
+    witness: output.witness
+  },
+  request
+);
+console.log('L7 Verdict Status:', verdict.status);
+// Ожидается: 'PASS'
+```
+
+> **Важное разграничение:** В текущем выпуске `v0.1.0-alpha` входной контракт агента `MinimalAgentRequest` является *спроектированным интерфейсом* (Phase 3.1). Прямое программное взаимодействие с функциями `src/core/*` является единственным верифицированным рантайм-маршрутом до реализации адаптера `src/entry/*` (Phase 3.2).
 
 ---
 
 ## 11. Лицензия
 
 Исходный код и документация OMR распространяются под лицензией **Apache License 2.0**. Полный текст приведён в файле [`LICENSE`](./LICENSE).
+
