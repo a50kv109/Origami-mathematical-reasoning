@@ -25,19 +25,19 @@
 
 ### `R-01` — OMR Mathematical Core (`Existing`)
 - **Цель:** Формальное математическое представление геометрических состояний (`L1–L7`), детерминированное выполнение операций, журнал `TRACE` и независимая Zero-Trust верификация.
-- **Текущая зрелость:** Реализованы и проверены 2D `L2 REFLECTION_ACROSS_LINE`, `OperationRequest`, `TRACE` (`deepFreeze`) и `L7` (`Contract 02 v2`, `v0.1.0` Phase 2.2); `L1`, `L3–L6`, `CAPABILITY_GAP`, точная/интервальная арифметика и `JCS + SHA-256` — на уровне проектных спецификаций.
-- **Существующие документы:** `README.md`, `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT_ROADMAP.md`, `docs/FIRST_PROTOTYPE_SPEC.md`, `PHASE_2_2_IMPLEMENTATION_REPORT.md`, `RESEARCH_INTEGRATION_V1.md`.
-- **Нерешённые вопросы:** `AUD-C01` (стандартизация `Face2D.vertexIds` для Contract 02 v3), `D-3` (`normSq = Infinity` в `L2`), `D-8` (разница бандла), `CAPABILITY_GAP`, реализация `Phase 3` (`L1 ↔ L2`).
+- **Текущая зрелость:** Реализованы (`IMPLEMENTED`) 2D `L2 REFLECTION_ACROSS_LINE`, `OperationRequest`, `TRACE` (in-process `deepFreeze`) и алгоритмически/модульно изолированный `L7` (`Contract 02 v2`, `v0.1.0` Phase 2.2) поверх общей арифметики `IEEE-754 f64`; на диске зафиксированы (`TESTED`) `36` тестов (`19` в `tests/contract02.test.ts` + `17` в `tests/metamorphic.test.ts`); `L1`, `L3–L6`, `CAPABILITY_GAP`, точная/интервальная арифметика и `JCS + SHA-256` — на уровне проектных спецификаций (`DOCUMENTED`).
+- **Существующие документы:** `README.md`, `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT_ROADMAP.md`, `docs/FIRST_PROTOTYPE_SPEC.md`, `PHASE_2_2_IMPLEMENTATION_REPORT.md`, `RESEARCH_INTEGRATION_V1.md`, `PHASE_2_3_3_ARCHIVE_FORENSIC_REPORT.md`.
+- **Нерешённые вопросы:** `AUD-C01` (стандартизация `Face2D.vertexIds` для Contract 02 v3), открытые дефекты/ограничения кода **`D-1`** (нецентрированная Shoelace в `L7`), **`D-2`** (абсолютный порог `1e-12`), **`D-3`** (переполнение `normSq` в `L2`), **`D-4`** (`areaEpsilon ?? epsilon` в `L7:59`), **`D-5`** (вакуумный `PASS` с `orientationInverted: true` при 0 движущихся граней), **`D-8`** (`UNRESOLVED` расхождение размера JS-бандла), `CAPABILITY_GAP`, реализация `Phase 3` (`L1 ↔ L2`).
 - **Зависимости:** Не зависит от `MCAR` и `PWRP`; сохраняется неизменным при исследованиях `R-03..R-08`.
 - **Возможный следующий шаг:** Изолированная подготовка и планирование `Phase 2.4` / `Phase 3` (`Contract 01`) по отдельному решению владельца.
 
 ### `R-02` — Property F / Phase 2.3.3 (`Existing research`)
-- **Цель:** Инженерно-консолидированное завершение метаморфного тестирования инверсии ориентации (`Property F`) поверх нетронутого математического ядра (`src/core/*`).
-- **Текущая зрелость:** Полностью подготовлена спецификация Варианта B (`Property F Test Layer v1`), закрыты 10 замечаний пре-имплементационного аудита (`AUD-A01..F01`), утверждены `ROD-01` и `ROD-02`; реализация ожидает `ROD-03`.
-- **Существующие документы:** `PHASE_2_3_3_REIMPLEMENTATION_SPEC.md`, `PHASE_2_3_3_TEST_MATRIX_V2.md`, `PROPERTY_F_TEST_LAYER_V1.md`, `PHASE_2_3_3_PRE_IMPLEMENTATION_AUDIT.md`, `PHASE_2_3_3_AUDIT_FINDINGS_RESOLUTION.md`, `PHASE_2_3_3_OWNER_DECISIONS.md`, а также пакет форензики `PHASE_2_3_3_*`.
-- **Нерешённые вопросы:** Выдача явного разрешения `ROD-03`; внеконтурные `D-3`, `D-8`, `OD-05`.
-- **Зависимости:** Опирается на `R-01` (`src/core/*`, 36 существующих тестов); изолирован от `R-03..R-08`.
-- **Возможный следующий шаг:** При отдельном получении `ROD-03` — создание `tests/propertyF_v1.test.ts` и прогон 15 мутаций.
+- **Цель:** Инженерно-консолидированное завершение метаморфного тестирования инверсии ориентации (`Property F`) поверх нетронутого математического ядра (`src/core/*`) и базовых `36` тестов.
+- **Текущая зрелость:** В `tests/metamorphic.test.ts` присутствуют (`TESTED`) `4` базовых теста `Property F` (`F1–F3`, `NC-F1..NC-F3`, Rotation Control); полный 6-уровневый классификатор `classifyPropertyF`, файл `tests/propertyF_v1.test.ts` и `15` мутаций **не реализованы и не запускались** (`DOCUMENTED / PROPOSED`). Закрыты 10 замечаний аудита (`AUD-A01..F01`), утверждены `ROD-01` и `ROD-02`; реализация ожидает `ROD-03: WAITING FOR EXPLICIT OWNER AUTHORIZATION`.
+- **Существующие документы:** `PHASE_2_3_3_REIMPLEMENTATION_SPEC.md`, `PHASE_2_3_3_TEST_MATRIX_V2.md`, `PROPERTY_F_TEST_LAYER_V1.md`, `PHASE_2_3_3_PROPERTY_F_SPECIFICATION.md`, `PHASE_2_3_3_PROPERTY_F_VALIDATION.md`, `PHASE_2_3_3_PRE_IMPLEMENTATION_AUDIT.md`, `PHASE_2_3_3_AUDIT_FINDINGS_RESOLUTION.md`, `PHASE_2_3_3_OWNER_DECISIONS.md`, а также пакет форензики `PHASE_2_3_3_*`.
+- **Нерешённые вопросы:** Выдача явного разрешения `ROD-03`; пробелы базовых тестов + двухполитическая полоса допусков оракул vs `L7` (`D-7` / `OD-02`); оператор `<` vs `<=` на `1e-12` в `tests/metamorphic.test.ts`; вынесенные внеконтурные `D-3` (`L2`), **`D-8` (`UNRESOLVED` бандл)** и `D-6` / `OD-05` (`17` файлов в `public/assets/aistudio/`).
+- **Зависимости:** Опирается на `R-01` (`src/core/*`, `36` существующих тестов); изолирован от `R-03..R-08`.
+- **Возможный следующий шаг:** При отдельном получении `ROD-03` — создание `tests/propertyF_v1.test.ts` и прогон `15` мутаций.
 
 ### `R-03` — CRP-01 / MCAR (`Documented research`)
 - **Цель:** Формирование конструктивного мышления агента (*«Единство не требует единого происхождения»*): распознавание `Single-Piece / Modular / Hybrid / Multi-Part Enclosure`, декомпозиция на `COMPONENTS` и `JOINTS`, удержание `HYPOTHESIS_SET` и `UNKNOWN`.

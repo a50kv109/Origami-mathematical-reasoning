@@ -23,15 +23,16 @@
 
 ---
 
-## 2. Текущие возможности (Phase 2.2)
+## 2. Текущие возможности (ядро `v0.1.0` Phase 2.2 и тестовая база Phase 2.3)
 
-Реализовано и подтверждено автотестами (`19/19` в `tests/contract02.test.ts`):
+Реализовано в исходном коде (`src/core/*`) и представлено в тестовой базе репозитория (**`36` тестов на диске**: `19` контрактных в `tests/contract02.test.ts` + `17` метаморфных в `tests/metamorphic.test.ts`; отнесены к статусу **`TESTED`** по файлам тестов и историческим отчётам, без повторного рантайм-прогона в рамках документационной сверки):
 
 - **Типизированные контракты (`src/core/types.ts`):** `GeometryState` (с `stateId`, `version`, `vertices`, `edges`, `faces`), `LineNormalParams`, `OperationRequest`, `ReflectionWitness`, `TraceEntry`, `VerificationClaim`, `VerificationVerdict` (с предикатом `requestBound`), `VerifierTolerances`.
 - **Доверенный запрос операции (`src/core/operationRequest.ts`):** фабрика `createOperationRequest` с глубокой заморозкой (`deepFreeze`), привязкой к `sourceStateId`/`sourceStateVersion` и явным разбиением `movingVertexIds`/`fixedVertexIds`.
 - **Детерминированный генератор 2D-отражений (`src/core/l2GeometryEngine.ts`):** вычисление `REFLECTION_ACROSS_LINE` строго по `OperationRequest` в двойной точности IEEE-754 (без округления `.toFixed`) с проверкой `REQUEST_STATE_MISMATCH` и выпуском `ReflectionWitness`.
 - **Иммутабельный журнал `TRACE` (`src/core/trace.ts`):** глубокое клонирование и заморозка (`deepFreeze`) состояний, запросов `OperationRequest`, свидетельств и записей переходов.
 - **Аксиоматический верификатор `L7` (`src/core/l7IndependentVerifier.ts`):** 4-этапная Zero-Trust проверка `verifyResult(claim, request, overrides?)` и `verifyProcess(trace, trustedRequests, overrides?)` с нулевым рантайм-импортом из `L2`, `TRACE` и `operationRequest`, а также со строгой проверкой `Number.isFinite(stepIndex)` и устойчивостью к согласованной подмене `claim + witness + geometry`.
+- **Тестовый контур (`tests/contract02.test.ts`, `tests/metamorphic.test.ts`):** `19` тестов контракта `Contract 02 v2` и `17` метаморфных тестов (`Properties A–E` и базовая ремедиация `Property F1–F3`, `NC-F1..NC-F3`, Rotation Control). Расширенный 6-уровневый классификатор `Property F Test Layer v1` (`tests/propertyF_v1.test.ts`, 15 мутаций) **документирован/предложен** в пакете `Phase 2.3.3` и ожидает отдельного разрешения владельца (`ROD-03: WAITING FOR EXPLICIT OWNER AUTHORIZATION`).
 - **Интерактивный веб-стенд (`src/components/VerificationWorkbench.tsx` + `src/App.tsx`):** клиентская визуализация `OperationRequest → L2 ↔ L7`, пресетов осей, сценариев искажений и журнала `TRACE` вместе с паспортом архитектуры.
 
 ---
@@ -93,7 +94,7 @@
 
 ## 7. Независимая проверка L7 (`src/core/l7IndependentVerifier.ts`)
 
-Модуль `L7` **не импортирует** ни одной функции или структуры среды выполнения из `L2`, `TRACE` или `operationRequest` (разрешены только чистые типы `import type ... from './types'`, что проверяется статическим тестом). Вместо повторного вычисления координат решателем `L7` проверяет `VerificationClaim` и `TraceEntry[]` относительно доверенного `OperationRequest` в четыре этапа:
+Модуль `L7` **не импортирует** ни одной функции или структуры среды выполнения из `L2`, `TRACE` или `operationRequest` (разрешены только чистые типы `import type ... from './types'`, что проверяется статическим тестом). При этом его независимость является **алгоритмической и модульной** (рантайм-изоляция в одном процессе Node/браузера поверх общей арифметики `IEEE-754 f64` и in-process `Object.freeze`, без криптографической изоляции или независимой точной арифметики). Вместо повторного вычисления координат решателем `L7` проверяет `VerificationClaim` и `TraceEntry[]` относительно доверенного `OperationRequest` в четыре этапа:
 
 1. **Stage A (Допустимость входа):** проверка конечности всех IEEE-754 чисел (включая `request`, `claim`, `witness` и состояния) и невырожденности нормали `||n|| > zeroNormalEpsilon` (`1e-12`). При нарушении возвращается `UNDETERMINED`.
 2. **Stage B (Привязка к `OperationRequest` и свидетельство `witness ↔ claim ↔ states`):** проверка `requestBound` (идентификатор запроса, `requestProvenance`, тип операции, `sourceStateId`/`version`, ось, разбиение `movingVertexIds`/`fixedVertexIds` во всех структурах) и `witnessBound` (биекция `witness.vertexPairs`, неподвижность `fixedVertexIds`, сохранение `VertexID`/`EdgeID`/`FaceID`). Поле `witness.claimedResiduals` полностью игнорируется.
@@ -125,7 +126,7 @@ npm ci
 ### Основные команды
 
 ```bash
-# Автоматические тесты (Contract 02 v2, 19 сценариев на node:test + tsx)
+# Автоматические тесты (36 тестов: 19 в tests/contract02.test.ts + 17 в tests/metamorphic.test.ts; node:test + tsx)
 npm test
 
 # Проверка типов TypeScript (tsc --noEmit при "strict": true)
@@ -143,13 +144,22 @@ npm run clean
 
 ---
 
-## 9. Текущие ограничения
+## 9. Текущие ограничения и известные дефекты (`D-1` — `D-8`)
 
 1. **Узкая предметная область:** реализована только плоская 2D-операция `REFLECTION_ACROSS_LINE` на заранее заданном графе `GeometryState`. Операции `FACE_SUBDIVISION` (L1), Z-порядок слоёв (L3), 3D-кинематика (L4), криволинейные сгибы (L5) и оптимизация (L6) в коде отсутствуют.
-2. **Вердикт `CAPABILITY_GAP` пока не реализован:** `VerificationStatus` в `src/core/types.ts` ограничен значениями `'PASS' | 'FAIL' | 'UNDETERMINED'`.
+2. **Вердикт `CAPABILITY_GAP` пока не реализован:** `VerificationStatus` в `src/core/types.ts` ограничен значениями `'PASS' | 'FAIL' | 'UNDETERMINED'` (нет статуса `NOT_APPLICABLE` или `CAPABILITY_GAP`).
 3. **Арифметика IEEE-754 `f64`:** при экстремальных масштабах координат или длинных цепочках отражений возможно сокращение мантиссы; точная/интервальная арифметика (`BigInt`) запланирована на следующие фазы.
-4. **Отсутствие криптографической привязки `TRACE`:** целостность `TRACE` и соответствие `OperationRequest` проверяются структурно в памяти без канонизации JCS (RFC 8785), подписей и хеш-цепочек SHA-256.
-5. **Пакетный режим:** `package.json` помечен `"private": true`; актуальным lock-файлом для воспроизводимой установки является `package-lock.json` (`bun.lock` сохранён в корне с раннего этапа и не используется в CI/npm-потоке).
+4. **Отсутствие криптографической привязки `TRACE`:** целостность `TRACE` и соответствие `OperationRequest` проверяются структурно в памяти (`deepFreeze` / `Object.freeze`) без канонизации JCS (RFC 8785), подписей и хеш-цепочек SHA-256.
+5. **Известные дефекты/ограничения текущей реализации и репозитория (`D-1` — `D-8`, в коде не исправлялись до Phase 2.4 / `ROD-03`):**
+   - **`D-1` (нецентрированная Shoelace в `L7`):** `computeSignedArea` (`src/core/l7IndependentVerifier.ts:81-90`, а также базовая копия в `tests/metamorphic.test.ts:1383-1403`) суммирует `x_i y_{i+1} - x_{i+1} y_i` от `(0,0)`, что при больших сдвигах порядка `1e8`/`1e9` вызывает потерю точности и ложные отказы (`FAIL`/`UNDETERMINED`);
+   - **`D-2` (масштабно-зависимый порог вырожденности):** `degenerateAreaEpsilon = 1e-12` (`l7IndependentVerifier.ts:50, 896`, `<=`) является абсолютным и ошибочно относит невырожденные микротреугольники с площадью $\le 10^{-12}$ к вырожденным (`UNDETERMINED`); кроме того, в текущей базе `tests/metamorphic.test.ts:1411, 1457` используется строгое `<` вместо `<=`;
+   - **`D-3` (переполнение `normSq` в `L2`):** `validateLineParams` (`src/core/l2GeometryEngine.ts:75-87`) при `!Number.isFinite(normSq)` (напр., `||n|| ≈ 1e155`) выбрасывает `DEGENERATE_NORMAL` с текстом `<= zeroNormalEps`, смешивая переполнение квадрата нормы с вырожденностью;
+   - **`D-4` (связывание допусков в `resolveTolerances`):** `areaEpsilon: overrides?.areaEpsilon ?? epsilon` (`l7IndependentVerifier.ts:59`) молча подменяет `areaEpsilon` значением `epsilon`, если `areaEpsilon` не передан явно;
+   - **`D-5` (вакуумный `PASS` в `L7 Stage D`):** `orientationInverted` инициализируется как `true` (`l7IndependentVerifier.ts:847`), а проверка отказа требует `hasNonDegenerateMovingFace` (`l7IndependentVerifier.ts:934, 939-947`); при 0 чисто движущихся граней (100% `MIXED`, 100% `FIXED` или 0 граней) `verifyResult` возвращает `PASS` с `orientationInverted: true` вакуозно;
+   - **`D-6` (исторические вложения `public/assets/aistudio/` и рассинхрон):** вопреки ранней записи в `CHANGELOG.md [0.1.0]`, каталог `public/assets/aistudio/` фактически содержит **17** исторических файлов (2 PDF и 15 `.md`, включая дубликаты), которые Vite копирует в `dist/assets/aistudio/` при сборке; согласно `ROD-02` / `OD-05`, эти файлы намеренно сохраняются без изменений и не удаляются в текущем контуре;
+   - **`D-7` (пробелы базовых тестов `Property F` и допускная полоса оракула vs `L7`):** базовые 4 теста в `tests/metamorphic.test.ts` не включают 6-уровневый классификатор `classifyPropertyF`, покрытие `FIXED_CHANGED`, невыпуклые полигоны и изолированные вызовы `L7` на всех краевых режимах; в спецификации `Property F Test Layer v1` отдельно зафиксирована двухполитическая полоса расхождения `(1e-12 * max(1, |A0|), 1e-7]` для `|A0| <= 1e5`;
+   - **`D-8` (разница размера JS-бандла — `UNRESOLVED`):** в отчётах прошлых сборок зафиксировано расхождение размера бандла (`562.64 kB` в AI Studio против `335.25 kB` во внешней среде Claude при совпадающих мажорных версиях зависимостей); причина расхождения не установлена (**`UNRESOLVED`**).
+6. **Пакетный режим и среда снимка:** `package.json` помечен `"private": true`; актуальным lock-файлом для `npm ci` является `package-lock.json` (`bun.lock` присутствует в корне с раннего этапа, но не используется в npm-потоке; `.git` в изолированном снимке AI Studio отсутствует).
 
 ---
 
@@ -159,8 +169,10 @@ npm run clean
 | :--- | :--- | :--- |
 | **Phase 1** | Архитектура `L1–L7`, эпистемическая дисциплина и аудит источников | Завершено |
 | **Phase 2.1** | `Contract 02 v2` (`L2 ↔ L7`, `ReflectionWitness`, аксиоматический L7) | **Реализовано (`v0.1.0`)** |
-| **Phase 2.2** | `OperationRequest`, привязка `requestBound`, строгая проверка `stepIndex`, `"strict": true` в `tsconfig.json`, ESM `vite.config.ts`, 19 автотестов | **Реализовано (`CAPABILITY_GAP` отложен)** |
-| **Phase 3** | `Contract 01` (`L1 ↔ L2`, `FACE_SUBDIVISION`, `portableId != localId`), формализация `CAPABILITY_GAP` | Запланировано |
+| **Phase 2.2** | `OperationRequest`, привязка `requestBound`, строгая проверка `stepIndex`, `"strict": true` в `tsconfig.json`, ESM `vite.config.ts`, 19 контрактных автотестов | **Реализовано (`CAPABILITY_GAP` отложен)** |
+| **Phase 2.3.1–2.3.2** | Метаморфное тестирование `Properties A–E` и ремедиация базового слоя `tests/metamorphic.test.ts` (32 → 36 тестов) | **Реализовано в тестах (`TESTED`)** |
+| **Phase 2.3.3** | Базовые `F1–F3`, `NC-F1..NC-F3` и Rotation Control в `tests/metamorphic.test.ts`; полная спецификация Варианта B (`tests/propertyF_v1.test.ts`, 6-уровневый классификатор, 15 мутаций) | **Частично в тестах (`F1–F3`); расширенный слой `DOCUMENTED/PROPOSED` (ожидает `ROD-03`)** |
+| **Phase 2.4 / 3** | Разрешение `D-1`–`D-5`, `AUD-C01` (`Face2D`), `Contract 01` (`L1 ↔ L2`, `FACE_SUBDIVISION`), формализация `CAPABILITY_GAP` | Запланировано |
 | **Phase 4** | Сквозной 2D MVP (`Квадрат → Подразделение → Отражение → TRACE → L7`) | Запланировано |
 | **Phase 5–7** | Слой `L3` (порядок слоёв), `L4` (3D-кинематика), `L6` (оптимизация), `L5` (криволинейные складки) | Запланировано |
 | **Phase 8** | Переносимый AI Reasoning Skill и проверенные адаптеры (`ToolAdapter`) | Запланировано |
@@ -181,12 +193,12 @@ npm run clean
 
 Наряду с реализацией 2D-ядра (`v0.1.0`, Phase 2.2) и инженерным пакетом верификации `Property F` (`Phase 2.3.3`) в проекте оформлено самостоятельное исследовательское направление **`OMR — Integrated Engineering Reasoning Architecture`** (без изменения кода `src/core/*`, `L1–L7`, `Contract 02` и `Property F`):
 
-- [`PROJECT_ARCHITECTURE_STATUS.md`](./PROJECT_ARCHITECTURE_STATUS.md) — объективное разделение состояния проекта (`Implemented` / `Documented` / `Proposed` / `Unresolved`);
+- [`PROJECT_ARCHITECTURE_STATUS.md`](./PROJECT_ARCHITECTURE_STATUS.md) — объективное разделение состояния проекта (`Implemented` / `Tested` / `Documented` / `Proposed` / `Unresolved`);
 - [`OMR_ARCHITECTURE_EVOLUTION.md`](./OMR_ARCHITECTURE_EVOLUTION.md) — хронология перехода от математического ядра к конструктивному (`CRP-01 / MCAR`) и физическому (`PWRP v1.1`) рассуждениям;
-- [`OMR_ARCHITECTURE_MAP.md`](./OMR_ARCHITECTURE_MAP.md) — карта трёх областей знания (`L1–L7`, `CRP-01 / MCAR`, `PWRP v1.1`) и исследовательской координации;
+- [`OMR_ARCHITECTURE_MAP.md`](./OMR_ARCHITECTURE_MAP.md) — карта трёх областей знания (`L1–L7`, `CRP-01 / MCAR`, `PWRP v1.1`), четырёх областей корректности и исследовательской координации;
 - [`OMR_ARCHITECTURE_DECISION_RECORD.md`](./OMR_ARCHITECTURE_DECISION_RECORD.md) — реестр архитектурных решений и предложений с разграничением статусов;
-- [`OMR_RESEARCH_REGISTER.md`](./OMR_RESEARCH_REGISTER.md) и [`OMR_ARCHITECTURE_OPEN_QUESTIONS.md`](./OMR_ARCHITECTURE_OPEN_QUESTIONS.md) — реестр направлений `R-01..R-08` и нерешённых вопросов;
-- [`OMR_DOCUMENTATION_INVENTORY.md`](./OMR_DOCUMENTATION_INVENTORY.md) — инвентаризация всех документов проекта.
+- [`OMR_RESEARCH_REGISTER.md`](./OMR_RESEARCH_REGISTER.md) и [`OMR_ARCHITECTURE_OPEN_QUESTIONS.md`](./OMR_ARCHITECTURE_OPEN_QUESTIONS.md) — реестр направлений `R-01..R-08`, дефектов `D-1..D-8` и нерешённых вопросов;
+- [`OMR_DOCUMENTATION_INVENTORY.md`](./OMR_DOCUMENTATION_INVENTORY.md) и [`DOCUMENTATION_RECONCILIATION_REPORT.md`](./DOCUMENTATION_RECONCILIATION_REPORT.md) — инвентаризация всех документов проекта и итоговый отчёт сверки расхождений.
 
 ---
 

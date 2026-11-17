@@ -7,7 +7,12 @@
 
 ### Documentation
 - Выполнена консолидация документации `OMR Architecture Evolution Package v1.0` без изменения исходного кода, тестов, `Contract 02`, `Property F` и слоёв `L1–L7`: добавлены `OMR_DOCUMENTATION_INVENTORY.md`, `PROJECT_ARCHITECTURE_STATUS.md`, `OMR_ARCHITECTURE_EVOLUTION.md`, `OMR_ARCHITECTURE_MAP.md`, `OMR_ARCHITECTURE_DECISION_RECORD.md`, `OMR_RESEARCH_REGISTER.md`, `OMR_ARCHITECTURE_OPEN_QUESTIONS.md`, `OMR_DOCUMENTATION_CONSOLIDATION_REPORT.md`.
-- Зафиксирован исследовательский трек **`OMR — Integrated Engineering Reasoning Architecture`**, связывающий `OMR L1–L7`, `CRP-01 / MCAR` и `PWRP v1.1` с сохранением разделения реализованных, документированных, предложенных и нерешённых положений.
+- Зафиксирован исследовательский трек **`OMR — Integrated Engineering Reasoning Architecture`**, связывающий `OMR L1–L7`, `CRP-01 / MCAR` и `PWRP v1.1` с сохранением разделения реализованных, протестированных, документированных, предложенных и нерешённых положений.
+- Выполнена сверка и устранение расхождений документации с фактическим состоянием репозитория (`DOCUMENTATION_RECONCILIATION_REPORT.md`):
+  - синхронизирован `README.md` (`36` тестов на диске: `19` в `tests/contract02.test.ts` + `17` в `tests/metamorphic.test.ts`, явные границы изоляции `L7`, каталог известных дефектов/ограничений `D-1`–`D-8`, пятиуровневый статус `Property F` и ожидание `ROD-03`);
+  - введена явная категория `TESTED` отдельно от `IMPLEMENTED`, `DOCUMENTED`, `PROPOSED` и `UNRESOLVED` в `PROJECT_ARCHITECTURE_STATUS.md` и инвентаре документации;
+  - уточнено фактическое состояние каталога `public/assets/aistudio/` (`17` исторических файлов на диске, сохранённых по `ROD-02`/`OD-05`, вопреки ранней записи об удалении в исторической секции `[0.1.0]`, сама историческая секция `[0.1.0]` не переписывалась) и присутствие `bun.lock` в корне снимка;
+  - зафиксирован статус `UNRESOLVED` для причины расхождения размера JS-бандла (`D-8`).
 
 ## [0.1.0] - 2026-11-15
 

@@ -17,7 +17,7 @@
 | 4 | **`Constructive provenance ≠ Geometric appearance.`** | `MCAR_RESEARCH_REPORT.md` ($\text{Whole Structure} \neq \text{Single Piece}$), `MCAR_SCENARIO_VALIDATION.md` (`M8`, `M9`) | `EXISTING` *(в пакете `MCAR`)* |
 | 5 | **`UNKNOWN ≠ FALSE.`** | `MCAR_PATTERN_PASSPORT.md`, `OMR_EPISTEMIC_VECTOR_SPECIFICATION.md` | `EXISTING` / `DERIVED` |
 | 6 | **`Absence of physical verification ≠ Physical infeasibility.`** | `PWRP_V1_1_PATTERN_CATALOG.md` (`PWRP-10`), `OMR_EPISTEMIC_VECTOR_SPECIFICATION.md` | `EXISTING` |
-| 7 | **`A mathematical PASS does not establish physical feasibility.`** | `OMR_CROSS_ARCHITECTURE_AUDIT.md`, `OMR_INTERFACE_CONTRACT_AUDIT.md` | `EXISTING` / `DERIVED` |
+| 7 | **`A mathematical PASS does not establish physical feasibility.`** *(Математическая корректность `L2/L7`, конструктивная корректность `MCAR`, кинематическая достижимость `L4` и физическая осуществимость `PWRP v1.1` являются ортогональными критериями)* | `OMR_CROSS_ARCHITECTURE_AUDIT.md`, `OMR_INTERFACE_CONTRACT_AUDIT.md`, `docs/ARCHITECTURE.md` | `EXISTING` / `DERIVED` |
 
 ---
 
@@ -25,21 +25,21 @@
 
 ### `ADR-001` — Изоляция математического ядра (`L2 ↔ L7`) и доверенный `OperationRequest`
 - **Контекст:** Генератор `L2` и верификатор `L7` не должны разделять логику решателя или допускать подмену параметров в `claim + witness`.
-- **Решение:** Хранение координат в IEEE-754 без округления, нулевой рантайм-импорт `L2/TRACE/operationRequest` в `L7`, обязательный замороженный `OperationRequest` (`requestBound`) и 4-этапная аксиоматическая проверка.
-- **Обоснование:** Независимость верификации и защита от согласованных подмен (`Phase 2.1` + `Phase 2.2`).
+- **Решение:** Хранение координат в `IEEE-754 f64` без округления, алгоритмическая/модульная изоляция `L7` (`0` рантайм-импортов из `L2`/`TRACE`/`operationRequest`), обязательный замороженный `OperationRequest` (`requestBound`, in-process `deepFreeze`) и 4-этапная аксиоматическая проверка.
+- **Обоснование:** Независимость верификации и защита от согласованных подмен (`Phase 2.1` + `Phase 2.2`). Граница решения: изоляция является модульной, поверх общей арифметики `IEEE-754` в памяти процесса и без криптографической привязки `TRACE`.
 - **Статус:** **`ACCEPTED`** *(реализовано в `src/core/*`, `PHASE_2_2_IMPLEMENTATION_REPORT.md`)*.
-- **Связанные документы:** `docs/ARCHITECTURE.md`, `README.md`, `PHASE_2_2_IMPLEMENTATION_REPORT.md`.
+- **Связанные документы:** `docs/ARCHITECTURE.md`, `README.md`, `PHASE_2_2_IMPLEMENTATION_REPORT.md`, `PHASE_2_3_3_ARCHIVE_FORENSIC_REPORT.md`.
 - **Последствия:** `Contract 02 v2` не затрагивается исследовательскими пакетами `MCAR`, `PWRP` и аудитами.
-- **Открытые вопросы:** `CAPABILITY_GAP`, `AUD-C01` (`Face2D.vertexIds` для Contract 02 v3).
+- **Открытые вопросы:** `CAPABILITY_GAP`, `AUD-C01` (`Face2D.vertexIds` для Contract 02 v3), а также задокументированные дефекты кода ядра **`D-1`–`D-5`** (нецентрированная Shoelace `D-1`, абсолютный порог `1e-12` `D-2`, переполнение `normSq` `D-3`, сцепление `areaEpsilon ?? epsilon` `D-4`, вакуумный `L7 PASS` при 0 движущихся граней `D-5`), перенесённые на Phase 2.4.
 
 ### `ADR-002` — Изолированное завершение `Phase 2.3.3` по Варианту B и воротам `ROD-01..03`
-- **Контекст:** Оригинальный кандидатный файл `Property F` недоступен; требуется сохранить 36 существующих тестов и не смешивать `Phase 2.3.3` с архитектурной эволюцией `MCAR/PWRP`.
-- **Решение:** Реализация `Property F Test Layer v1` предусмотрена в отдельном `tests/propertyF_v1.test.ts` (`ROD-01: APPROVED`), разрешён `npm run build` при нетронутом `public/assets/aistudio/` (`ROD-02: APPROVED`), запуск кода и 15 мутаций ожидает отдельного явного разрешения (`ROD-03`).
+- **Контекст:** Оригинальный кандидатный файл `Property F` недоступен; на диске присутствуют `36` базовых тестов (`19 contract02 + 17 metamorphic`, из них базовые `F1–F3`, `NC-F1..NC-F3`, Rotation Control), но отсутствует 6-уровневый классификатор `classifyPropertyF` и 15 мутаций. Требуется сохранить `36` существующих тестов, не править `D-1`–`D-8` в ядре на этапе `2.3.3` и не смешивать `Phase 2.3.3` с архитектурной эволюцией `MCAR/PWRP`.
+- **Решение:** Реализация `Property F Test Layer v1` (`classifyPropertyF` + 15 мутаций) предусмотрена в отдельном `tests/propertyF_v1.test.ts` (`ROD-01: APPROVED`), разрешён `npm run build` при нетронутом `public/assets/aistudio/` (17 файлов, `ROD-02: APPROVED`, `OD-05`), запуск кода и 15 мутаций ожидает отдельного явного разрешения (`ROD-03: WAITING FOR EXPLICIT OWNER AUTHORIZATION`).
 - **Обоснование:** Сохранение исторической и технической целостности `Phase 2.3.3`.
-- **Статус:** **`ACCEPTED`** *(процедурно в части `ROD-01/02`; код на паузе по `ROD-03`)*.
-- **Связанные документы:** `PHASE_2_3_3_OWNER_DECISIONS.md`, `PHASE_2_3_3_REIMPLEMENTATION_SPEC.md`, `PHASE_2_3_3_AUDIT_FINDINGS_RESOLUTION.md`.
-- **Последствия:** Пакеты `Phase 2.3.3` не переписываются при консолидации общей документации.
-- **Открытые вопросы:** Ожидание `ROD-03`, внеконтурные `D-3`, `D-8`, `OD-05`.
+- **Статус:** **`ACCEPTED`** *(процедурно в части `ROD-01/02`; код `tests/propertyF_v1.test.ts` не реализован и ждёт `ROD-03`)*.
+- **Связанные документы:** `PHASE_2_3_3_OWNER_DECISIONS.md`, `PHASE_2_3_3_REIMPLEMENTATION_SPEC.md`, `PHASE_2_3_3_AUDIT_FINDINGS_RESOLUTION.md`, `PROPERTY_F_TEST_LAYER_V1.md`.
+- **Последствия:** Пакеты `Phase 2.3.3` и базовые `36` тестов не переписываются при консолидации и сверке общей документации.
+- **Открытые вопросы:** Ожидание `ROD-03`, двухполитическая полоса допусков оракул vs `L7` + пробелы базы `36` (`D-7`), вынесенные технические расследования `D-3` (`L2`), **`D-8` (`UNRESOLVED` разница размера JS-бандла `562.64` vs `335.25 kB`)**, `D-6` (`OD-05`: 17 файлов `public/assets/aistudio/`).
 
 ### `ADR-003` — Разграничение `CRP-01 / MCAR` и `PWRP` как двух разных семейств паттернов
 - **Контекст:** Потребовалось решить, является ли модульное/гибридное конструирование физическим паттерном `PWRP-15`, расширением `PWRP-08` или самостоятельным классом конструктивного мышления.

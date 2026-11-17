@@ -1,9 +1,9 @@
 # OMR — Project Documentation Inventory (`OMR_DOCUMENTATION_INVENTORY.md`)
 
-**Версия:** OMR Project Documentation Consolidation v1.0 (Phase A)  
+**Версия:** OMR Project Documentation Consolidation v1.1 (Reconciled)  
 **Дата инвентаризации:** 2026-11-17  
-**Режим проверки:** Read-Only аудит фактической файловой структуры рабочего пространства.  
-**Принцип статусов:** Статус `ACCEPTED` присваивается **только** при наличии явного подтверждения в существующих документах/решениях владельца; исследовательские и аудиторские предложения фиксируются как `CURRENT`, `PROPOSED`, `UNRESOLVED`, `HISTORICAL` или `SUPERSEDED`.
+**Режим проверки:** Read-Only аудит фактической файловой структуры рабочего пространства AI Studio (без `.git`; в корне присутствует `bun.lock` наряду с актуальным `package-lock.json`; `dist/` отсутствует).  
+**Принцип статусов:** Разграничиваются инженерные статусы **`IMPLEMENTED`** (код `src/*`), **`TESTED`** (проверочные наборы `tests/*` на диске, с разделением статической проверки от рантайм-запуска), **`DOCUMENTED`**, **`PROPOSED`** и **`UNRESOLVED`**; а для жизненного цикла документов — `ACCEPTED` (только при явном подтверждении владельца), `CURRENT`, `PROPOSED`, `UNRESOLVED`, `HISTORICAL`, `SUPERSEDED`.
 
 ---
 
@@ -11,8 +11,8 @@
 
 | № | Название документа | Назначение | Статус | Архитектурный уровень | Актуальность | Связанные документы | Нужда в обновлении | Сохранение без изменений |
 | :- | :--- | :--- | :- | :--- | :--- | :--- | :--- | :--- |
-| 1 | `README.md` | Корневой обзор OMR `v0.1.0`, команды, границы, roadmap | `CURRENT` | Общий проект | Актуален для `v0.1.0` (`Phase 2.2`), не отражает пакет консолидации `v1.0` | `CHANGELOG.md`, `docs/*`, `PROJECT_ARCHITECTURE_STATUS.md` | **Да (точечно, Phase H)** — добавить ссылки на пакет эволюции архитектуры | Основной текст по `v0.1.0` сохранить |
-| 2 | `CHANGELOG.md` | Хронология изменений релиза (`Keep a Changelog`) | `CURRENT` | Общий проект | Актуален для `[0.1.0]` | `README.md`, `RELEASE_NOTES.md` | **Да (точечно, Phase H)** — запись `[Unreleased]` для документации | Секцию `[0.1.0]` не менять |
+| 1 | `README.md` | Корневой обзор OMR `v0.1.0`, `36` тестов (`19+17`), границы `L7`, дефекты `D-1`–`D-8`, roadmap и ссылки | `CURRENT` | Общий проект | Синхронизирован с кодом, тестами (`36`), статусом `Property F` и `D-1`–`D-8` | `CHANGELOG.md`, `PROJECT_ARCHITECTURE_STATUS.md`, `DOCUMENTATION_RECONCILIATION_REPORT.md` | Обновлён при сверке | Базовая структура `v0.1.0` сохранена |
+| 2 | `CHANGELOG.md` | Хронология изменений релиза (`Keep a Changelog`) | `CURRENT` *(секция `[0.1.0]` историческая с неточностью по `public/assets/aistudio/`)* | Общий проект | Актуализирована `[Unreleased]` с явной фиксацией 17 файлов `public/assets/aistudio/` | `README.md`, `RELEASE_NOTES.md`, `DOCUMENTATION_RECONCILIATION_REPORT.md` | Обновлена `[Unreleased]` | Секция `[0.1.0]` намеренно не переписывалась |
 | 3 | `RELEASE_NOTES.md` | Состав и ограничения software-релиза `v0.1.0` | `HISTORICAL` *(релизный снимок)* | Общий проект | Отражает конкретный срез `v0.1.0` (2026-11-15) | `CHANGELOG.md`, `README.md` | **Нет** *(нового релиза кода не было)* | **Сохранить полностью нетронутым** |
 | 4 | `CONTRIBUTING.md` | Правила изоляции `L7`, лицензирования и тестирования | `CURRENT` | Инженерный процесс | Актуально | `docs/ARCHITECTURE.md`, `tests/*` | Нет | Сохранить без изменений |
 | 5 | `docs/ARCHITECTURE.md` | Семислойная архитектура `L1–L7` и `Contract 02 v2` (`v0.1.0`) | `CURRENT` *(по ядру `L1–L7`)* | Архитектура ядра `OMR` | Актуален для `L1–L7` (`Phase 2.2`) | `OMR_ARCHITECTURE_MAP.md`, `src/core/*` | Нет *(защищено §2)* | **Не изменять** |
@@ -42,8 +42,9 @@
 
 | № | Название документа | Назначение | Статус | Архитектурный уровень | Актуальность | Связанные документы | Обновление / Сохранение |
 | :- | :--- | :--- | :- | :--- | :--- | :--- | :--- |
-| 18 | `PHASE_2_3_3_ENGINEERING_CONSOLIDATION.md`, `PHASE_2_3_3_EVIDENCE_MATRIX.md`, `PHASE_2_3_3_CANDIDATE_SOURCE_RECOVERY.md`, `PHASE_2_3_3_ARCHIVE_FORENSIC_REPORT.md`, `PHASE_2_3_3_CANDIDATE_MANIFEST.md`, `PHASE_2_3_3_FINALIZATION_OPTIONS.md`, `PHASE_2_3_3_INTEGRATION_READINESS.md`, `PHASE_2_3_3_NUMERICAL_DOMAIN_DESIGN.md`, `PHASE_2_3_3_PROPERTY_F_SPECIFICATION.md`, `PHASE_2_3_3_PROPERTY_F_VALIDATION.md`, `PHASE_2_3_3_ACCEPTANCE_PROTOCOL.md`, `PHASE_2_3_3_DECISION_RECORD.md` | Форензика и спецификация завершения Phase 2.3.3 (`Property F`) | `CURRENT` *(внутри трека 2.3.3)* / `HISTORICAL` *(для ранних версий до ревизии v1.2)* | Тестирование `Property F` | Отражают исследовательский контур Phase 2.3.3 без права менять код до `ROD-03` | `PHASE_2_3_3_REIMPLEMENTATION_SPEC.md`, `PHASE_2_3_3_OWNER_DECISIONS.md` | **Не изменять** *(сохраняется целостность 2.3.3)* |
-| 19 | `PHASE_2_3_3_REIMPLEMENTATION_SPEC.md`, `PHASE_2_3_3_TEST_MATRIX_V2.md`, `PROPERTY_F_TEST_LAYER_V1.md`, `PHASE_2_3_3_PRE_IMPLEMENTATION_AUDIT.md`, `PHASE_2_3_3_AUDIT_FINDINGS_RESOLUTION.md`, `PHASE_2_3_3_OWNER_DECISIONS.md` | Финальная спецификация Варианта B (`Property F Test Layer v1`), закрытие аудита `AUD-A01..F01`, ворота `ROD-01/02 (APPROVED)` и `ROD-03 (WAITING)` | `CURRENT` *(готовая спецификация; `ROD-01/02` `ACCEPTED/APPROVED`, реализация ожидает `ROD-03`)* | Тестирование `Property F` (`tests/propertyF_v1.test.ts` план) | Актуально (реализация не запущена) | `tests/metamorphic.test.ts`, `OMR_RESEARCH_REGISTER.md` (`R-02`) | **Не изменять** |
+| 18 | `PHASE_2_3_3_ENGINEERING_CONSOLIDATION.md`, `PHASE_2_3_3_EVIDENCE_MATRIX.md`, `PHASE_2_3_3_CANDIDATE_SOURCE_RECOVERY.md`, `PHASE_2_3_3_ARCHIVE_FORENSIC_REPORT.md`, `PHASE_2_3_3_CANDIDATE_MANIFEST.md`, `PHASE_2_3_3_FINALIZATION_OPTIONS.md`, `PHASE_2_3_3_INTEGRATION_READINESS.md`, `PHASE_2_3_3_NUMERICAL_DOMAIN_DESIGN.md`, `PHASE_2_3_3_PROPERTY_F_SPECIFICATION.md`, `PHASE_2_3_3_PROPERTY_F_VALIDATION.md`, `PHASE_2_3_3_ACCEPTANCE_PROTOCOL.md`, `PHASE_2_3_3_DECISION_RECORD.md` | Форензика `D-1`–`D-8` и спецификация завершения Phase 2.3.3 (`Property F`) | `CURRENT` *(внутри трека 2.3.3)* / `HISTORICAL` *(для ранних версий до ревизии v1.2)* | Тестирование `Property F` | Отражают исследовательский контур Phase 2.3.3 без права менять код до `ROD-03` | `PHASE_2_3_3_REIMPLEMENTATION_SPEC.md`, `PHASE_2_3_3_OWNER_DECISIONS.md` | **Не изменять** *(сохраняется целостность 2.3.3)* |
+| 19 | `PHASE_2_3_3_REIMPLEMENTATION_SPEC.md`, `PHASE_2_3_3_TEST_MATRIX_V2.md`, `PROPERTY_F_TEST_LAYER_V1.md`, `PHASE_2_3_3_PRE_IMPLEMENTATION_AUDIT.md`, `PHASE_2_3_3_AUDIT_FINDINGS_RESOLUTION.md`, `PHASE_2_3_3_OWNER_DECISIONS.md` | Финальная спецификация Варианта B (`Property F Test Layer v1`), закрытие аудита `AUD-A01..F01`, ворота `ROD-01/02 (APPROVED)` и `ROD-03 (WAITING FOR EXPLICIT OWNER AUTHORIZATION)` | `CURRENT` *(готовая спецификация; `ROD-01/02` `ACCEPTED/APPROVED`, `tests/propertyF_v1.test.ts` и `15` мутаций в статусе `PROPOSED` / не запускались)* | Тестирование `Property F` (`tests/propertyF_v1.test.ts` план) | Актуально (в `tests/metamorphic.test.ts` есть только `F1–F3`/`NC-F1..NC-F3`; классификатор не реализован) | `tests/metamorphic.test.ts`, `OMR_RESEARCH_REGISTER.md` (`R-02`) | **Не изменять** |
+| 19a | `public/assets/aistudio/*` (17 файлов: 2 PDF + 15 `.md`, включая дубликаты) | Исторические вложения ранних сессий AI Studio | `HISTORICAL` *(актив сборки `dist/assets/aistudio/`)* | Артефакты среды (`D-6`, `OD-05`) | Сохраняются без изменений, удаления или перемещения согласно `ROD-02: APPROVED` | `PHASE_2_3_3_OWNER_DECISIONS.md`, `PHASE_2_3_3_ARCHIVE_FORENSIC_REPORT.md` | **Запрещено удалять / менять (`ROD-02`)** |
 
 ---
 
@@ -73,14 +74,15 @@
 
 ---
 
-## 7. Новый пакет консолидации (`OMR Architecture Evolution Package v1.0`)
+## 7. Пакет консолидации и сверки (`OMR Architecture Evolution Package` + `Reconciliation`)
 
-Создаётся данным заданием для связывания указанных выше пакетов без их перезаписи:
+Связующие документы верхнего уровня (обновлены без перезаписи исторических отчётов, кода и тестов):
 - `OMR_DOCUMENTATION_INVENTORY.md` *(настоящий реестр, `CURRENT`)*
-- `PROJECT_ARCHITECTURE_STATUS.md` *(объективное разделение `Implemented / Documented / Proposed / Unresolved`, `CURRENT`)*
+- `PROJECT_ARCHITECTURE_STATUS.md` *(объективное разделение `Implemented / Tested / Documented / Proposed / Unresolved`, `CURRENT`)*
 - `OMR_ARCHITECTURE_EVOLUTION.md` *(хронология развития архитектуры, `CURRENT`)*
-- `OMR_ARCHITECTURE_MAP.md` *(карта 3 областей знания и координации, `CURRENT`)*
+- `OMR_ARCHITECTURE_MAP.md` *(карта 3 областей знания, 4 областей корректности и координации, `CURRENT`)*
 - `OMR_ARCHITECTURE_DECISION_RECORD.md` *(реестр решений, принципов и их статусов, `CURRENT`)*
 - `OMR_RESEARCH_REGISTER.md` *(реестр треков `R-01..R-08`, `CURRENT`)*
-- `OMR_ARCHITECTURE_OPEN_QUESTIONS.md` *(сводный реестр открытых вопросов, `UNRESOLVED`)*
-- `OMR_DOCUMENTATION_CONSOLIDATION_REPORT.md` *(итоговый отчёт проверки целостности, `CURRENT`)*
+- `OMR_ARCHITECTURE_OPEN_QUESTIONS.md` *(сводный реестр открытых вопросов и `D-1..D-8`, `UNRESOLVED`)*
+- `OMR_DOCUMENTATION_CONSOLIDATION_REPORT.md` *(первичный отчёт консолидации v1.0, `HISTORICAL / SUPERSEDED` в части расхождений, закрытых сверкой)*
+- `DOCUMENTATION_RECONCILIATION_REPORT.md` *(итоговый отчёт документационной сверки расхождений с фактическим состоянием кода и файлов, `CURRENT`)*

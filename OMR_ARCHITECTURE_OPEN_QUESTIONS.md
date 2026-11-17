@@ -45,8 +45,21 @@
 
 ---
 
-## 4. Открытые вопросы математического ядра и смежных треков (`OMR Core` и `Phase 2.3.3`)
+## 4. Открытые вопросы и дефекты математического ядра и смежных треков (`D-1` — `D-8`, `OMR Core`, `Phase 2.3.3`)
 
-- **`R-01 / OMR Core` (`README.md`, `docs/ARCHITECTURE.md`):** формализация `CAPABILITY_GAP` в `VerificationStatus`, реализация `Contract 01 (L1 ↔ L2)`, интервальной / `BigInt`-арифметики (`Phase 2.4`), криптографической привязки `TRACE` (`JCS + SHA-256`) и `L3–L6`. (`UNRESOLVED`)
-- **`R-02 / Phase 2.3.3` (`PHASE_2_3_3_AUDIT_FINDINGS_RESOLUTION.md`):** ожидание явного разрешения владельца `ROD-03` на реализацию `tests/propertyF_v1.test.ts`; стандартизация `Face2D.vertexIds` (`AUD-C01`) для Contract 02 v3; вынесенные технические расследования `D-3` (`normSq = Infinity` в `L2`), `D-8` (размер JS-бандла) и `OD-05` (`public/assets/aistudio/`). (`UNRESOLVED`)
+- **`R-01 / OMR Core` (`README.md`, `docs/ARCHITECTURE.md`):** формализация `CAPABILITY_GAP` в `VerificationStatus`, реализация `Contract 01 (L1 ↔ L2)`, интервальной / `BigInt`-арифметики (`Phase 2.4`), криптографической привязки `TRACE` (`JCS + SHA-256`) и слоёв `L3–L6`. (`UNRESOLVED`)
+- **`R-02 / Phase 2.3.3` (`PHASE_2_3_3_OWNER_DECISIONS.md`, `PHASE_2_3_3_AUDIT_FINDINGS_RESOLUTION.md`):** ожидание явного разрешения владельца **`ROD-03: WAITING FOR EXPLICIT OWNER AUTHORIZATION`** на реализацию `tests/propertyF_v1.test.ts` (6-уровневый `classifyPropertyF` и прогон `15` мутаций); стандартизация `Face2D.vertexIds` (`AUD-C01`) для Contract 02 v3. (`UNRESOLVED`)
 - **`R-05 / Концептуальная перспектива`:** допустимость и границы переноса трёхосевой схемы (Происхождение $\to$ Поведение $\to$ Корректность) в формализм `SOL` (`OBJECT`, `RELATION`, `CONSTRAINT`, `STATE`) и вопрос о систематизации базовых способов инженерного мышления. (`UNRESOLVED` / исследовательская гипотеза)
+
+### Детальный реестр технических дефектов и ограничений (`D-1` — `D-8`)
+
+| ID | Суть открытого дефекта / ограничения | Место в коде / проекте | Статус / горизонт |
+| :- | :--- | :--- | :- |
+| **`D-1`** | Нецентрированная формула Гаусса (Shoelace) в `L7` (ложные `FAIL`/`UNDETERMINED` при больших координатных сдвигах `1e8`/`1e9`) | `src/core/l7IndependentVerifier.ts:81-90` (и копия в `tests/metamorphic.test.ts:1383-1403`) | `UNRESOLVED` для кода (фикс отложен до `Phase 2.4`; характеристика `PF1-CHAR-D1`) |
+| **`D-2`** | Абсолютный порог вырожденности `degenerateAreaEpsilon = 1e-12` (игнорирует масштаб $L$) + расхождение `<` vs `<=` на `1e-12` в текущей тестовой базе | `src/core/l7IndependentVerifier.ts:50, 896` (`<=`); `tests/metamorphic.test.ts:1411, 1457` (`<`) | `UNRESOLVED` для кода (выбор масштаба $c L^2$ — `Phase 2.4`; `PF1-CHAR-D2`) |
+| **`D-3`** | Переполнение `normSq = nx*nx + ny*ny` (`Infinity`, напр. при `||n|| ≈ 1e155`) выбрасывает `DEGENERATE_NORMAL` с текстом `<= zeroNormalEps` | `src/core/l2GeometryEngine.ts:75-87` | `UNRESOLVED` (вынесено в unit/contract-тесты `L2` и `Phase 2.4`) |
+| **`D-4`** | Неявное наследование `areaEpsilon: overrides?.areaEpsilon ?? epsilon` при передаче только `epsilon` | `src/core/l7IndependentVerifier.ts:59` | `UNRESOLVED` для кода (`Phase 2.4`; характеристика `PF1-CHAR-D4`) |
+| **`D-5`** | Вакуумный `L7 PASS` с `orientationInverted = true` при `0` невырожденных чисто движущихся граней (100% `MIXED`, 100% `FIXED` или `0` граней) при отсутствии статуса `NOT_APPLICABLE` | `src/core/l7IndependentVerifier.ts:847, 926-947` | `UNRESOLVED` (контрактный вопрос для `Contract 02 v3 / Phase 2.4`; `PF1-CHAR-D5`) |
+| **`D-6`** | `public/assets/aistudio/` содержит **17** исторических файлов (2 PDF + 15 `.md`, включая дубликаты), копируемых Vite в `dist/assets/aistudio/` вопреки исторической записи `[0.1.0]` в `CHANGELOG.md`; устаревшие ссылки в замороженных `docs/REPOSITORY_STRUCTURE.md` и др. | `public/assets/aistudio/*`, `docs/*` | `OPEN / PRESERVED BY ROD-02 & OD-05` (архивирование вне Phase 2.3.3 по отдельному решению) |
+| **`D-7`** | Пробелы 4 базовых тестов `Property F` в `tests/metamorphic.test.ts` (`classifyPropertyF` и `FIXED_CHANGED` не реализованы) + двухполитическая полоса расхождения оракул ($\tau_{\text{area}} = 10^{-12}\max(1,\|A_0\|)$) vs `L7` (`areaEpsilon = 10^{-7}`) на $\|A_0\| \le 10^5$ и инверсия при $\|A_0\| > 10^5$ | `tests/metamorphic.test.ts:1419-1718`; `PHASE_2_3_3_REIMPLEMENTATION_SPEC.md` §4 (`OD-02`, `AUD-D01`) | Тестовое покрытие ждёт `ROD-03`; утверждение двухуровневой политики на `Phase 2.4` |
+| **`D-8`** | Необъяснённое расхождение размера JS-бандла в отчётах прошлых сборок (`562.64 kB` в AI Studio vs `335.25 kB` во внешней среде Claude на совпадающих мажорных версиях зависимостей) | Отчёты сборок `PHASE_2_3_STEP_*`, `CANONICAL_BASELINE_RECOVERY_REPORT.md` | **`UNRESOLVED`** *(причина не установлена и не проверялась сборкой в данном цикле; гипотезы не утверждаются)* |
