@@ -177,6 +177,19 @@ npm run clean
 
 ---
 
+## 10a. Архитектурное развитие и исследовательские пакеты (`Architecture Evolution Package v1.0`)
+
+Наряду с реализацией 2D-ядра (`v0.1.0`, Phase 2.2) и инженерным пакетом верификации `Property F` (`Phase 2.3.3`) в проекте оформлено самостоятельное исследовательское направление **`OMR — Integrated Engineering Reasoning Architecture`** (без изменения кода `src/core/*`, `L1–L7`, `Contract 02` и `Property F`):
+
+- [`PROJECT_ARCHITECTURE_STATUS.md`](./PROJECT_ARCHITECTURE_STATUS.md) — объективное разделение состояния проекта (`Implemented` / `Documented` / `Proposed` / `Unresolved`);
+- [`OMR_ARCHITECTURE_EVOLUTION.md`](./OMR_ARCHITECTURE_EVOLUTION.md) — хронология перехода от математического ядра к конструктивному (`CRP-01 / MCAR`) и физическому (`PWRP v1.1`) рассуждениям;
+- [`OMR_ARCHITECTURE_MAP.md`](./OMR_ARCHITECTURE_MAP.md) — карта трёх областей знания (`L1–L7`, `CRP-01 / MCAR`, `PWRP v1.1`) и исследовательской координации;
+- [`OMR_ARCHITECTURE_DECISION_RECORD.md`](./OMR_ARCHITECTURE_DECISION_RECORD.md) — реестр архитектурных решений и предложений с разграничением статусов;
+- [`OMR_RESEARCH_REGISTER.md`](./OMR_RESEARCH_REGISTER.md) и [`OMR_ARCHITECTURE_OPEN_QUESTIONS.md`](./OMR_ARCHITECTURE_OPEN_QUESTIONS.md) — реестр направлений `R-01..R-08` и нерешённых вопросов;
+- [`OMR_DOCUMENTATION_INVENTORY.md`](./OMR_DOCUMENTATION_INVENTORY.md) — инвентаризация всех документов проекта.
+
+---
+
 ## 11. Лицензия
 
 Исходный код и документация OMR распространяются под лицензией **Apache License 2.0**. Полный текст приведён в файле [`LICENSE`](./LICENSE).

@@ -3,6 +3,12 @@
 Все значимые изменения проекта **Origami Mathematical Reasoning (OMR)** фиксируются в этом файле.  
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версионирование следует [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Documentation
+- Выполнена консолидация документации `OMR Architecture Evolution Package v1.0` без изменения исходного кода, тестов, `Contract 02`, `Property F` и слоёв `L1–L7`: добавлены `OMR_DOCUMENTATION_INVENTORY.md`, `PROJECT_ARCHITECTURE_STATUS.md`, `OMR_ARCHITECTURE_EVOLUTION.md`, `OMR_ARCHITECTURE_MAP.md`, `OMR_ARCHITECTURE_DECISION_RECORD.md`, `OMR_RESEARCH_REGISTER.md`, `OMR_ARCHITECTURE_OPEN_QUESTIONS.md`, `OMR_DOCUMENTATION_CONSOLIDATION_REPORT.md`.
+- Зафиксирован исследовательский трек **`OMR — Integrated Engineering Reasoning Architecture`**, связывающий `OMR L1–L7`, `CRP-01 / MCAR` и `PWRP v1.1` с сохранением разделения реализованных, документированных, предложенных и нерешённых положений.
+
 ## [0.1.0] - 2026-11-15
 
 Первый зафиксированный инженерный релиз: **Verified 2D Reflection Prototype (Phase 2.1)**.
