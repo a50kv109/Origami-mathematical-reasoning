@@ -1,0 +1,1645 @@
+1. Research Findings
+Coherence of a Constructive-Functional Classification: Origami folds can be rigorously classified by their constructive and functional roles, provided that function is modeled as a multi-attribute vector (or relational role assignment) rather than a mutually exclusive partition. In real structures, a single crease line or vertex gadget routinely performs multiple simultaneous roles (e.g., establishing a boundary edge while controlling a 1-DOF kinematic linkage, or joining layers while acting as a friction-assisted lock).
+
+Separation of Operation, Geometry, and Function: A fundamental requirement for mathematical rigor in OMR is decoupling:
+
+Geometric Operation / Crease Primitive: Mountain (
+𝑀
+M), Valley (
+𝑉
+V), Unfolded/Optional (
+0
+0), or compound maneuvers (reverse fold, crimp, sink, squash, rabbit ear, petal fold).   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 1
+
+Folding Sequence (Procedural History): The chronological order in which creases are actuated or reversed.
+
+Constructive Function (End-State Role): What the crease or crease-complex does in the target folded state 
+𝑓
+1
+f 
+1
+​
+  (shaping, framing, joining, retaining, or transmitting motion).
+For example, a sink (shizume-ori) is a geometric inversion operation. Depending on context, it functions as a form-generating volume modifier (sinking the top of a waterbomb base), an auxiliary excess-hiding tuck (Origamizer "tuck proxy"), or a retention-critical lock (closed sink trapping a flap inside a multi-layer pocket).   
+https://origami.c.u-tokyo.ac.jp/~tachi/cg/DemaineTachiOrigamizerSoCG2017.pdf
+
+Need for Multi-Dimensional Criticality: A single linear hierarchy of "significance" fails on real origami. A fold that is geometrically secondary (contributing negligible surface area or silhouette change, such as a 
+5
+ mm
+5 mm corner tuck) can be mechanically retention-critical (removing it causes catastrophic spring-back or delamination of the entire assembly). Conversely, a form-generating primary fold (the longitudinal keel of a paper boat or dart) defines the macro-geometry but provides zero mechanical retention against unfolding.
+
+Distinction Between Geometric Locking and Physical/Material Retention: Ideal zero-thickness rigid origami (
+𝑀
+⊂
+𝑅
+2
+→
+𝑅
+3
+M⊂R 
+2
+ →R 
+3
+ ) cannot achieve true topological interlocking without self-intersection during motion unless thickness, elasticity, or sequential non-rigid bending is introduced. Most practical origami locks rely on coupled geometric-physical mechanisms: geometric pocket enclosure combined with sheet bending stiffness, normal contact pressure, and Coulomb friction, or kinematic over-centering / bistable snap-through where unfolding requires passing through a higher-energy elastic strain barrier.
+
+Non-Point Structural Elements: Constructive function rarely resides in an isolated crease segment; it emerges at the scale of functional gadgets and zones—such as rivers and stretch devices in uniaxial bases, wall triangles/quadrangles in polyhedral wrapping, tomeshiro (locking allowances/tabs) in Shuzo Fujimoto’s polyhedra, and splitters/wires in rigid-foldable mechanisms.   
+Ori Studio — Origami Design Workspace
+і ще 2
+
+2. Proposed Functional Fold Classification
+Rather than treating the six preliminary groups as disjoint buckets, OMR should define them as six functional role predicates that can co-occur on a crease 
+𝑐
+𝑖
+c 
+i
+​
+  or crease-subcomplex 
+𝐺
+⊆
+𝐶
+G⊆C:
+
+2.1 Form-Generating Folds (ROLE_FORM)
+Definition: Creases and crease complexes that establish the primary exterior facets, silhouette boundaries, characteristic vertices, and visible 3D volume of the target folded state 
+𝑓
+1
+f 
+1
+​
+ .
+
+Constructive Function: Partitions the flat sheet 
+𝑀
+M into visible exterior panels and boundary edges, transforming Gaussian curvature distribution (via discrete angular defect at vertices) into macro-geometry.   
+https://origami.c.u-tokyo.ac.jp/~tachi/cg/DemaineTachiOrigamizerSoCG2017.pdf
+і ще 1
+
+Example: The central longitudinal valley fold and primary wing-root mountain folds of a classic dart airplane; the outer wall creases of a Masu box.
+
+Distinguishing Characteristics: Directly determines the Hausdorff/Fréchet approximation of the target shape 
+𝑄
+Q; removing or altering its dihedral angle 
+𝜌
+𝑖
+ρ 
+i
+​
+  immediately alters the external silhouette.   
+https://origami.c.u-tokyo.ac.jp/~tachi/cg/DemaineTachiOrigamizerSoCG2017.pdf
+
+Confidence Level: High (established in computational polyhedral wrapping and base design).
+
+Source or Evidence: Demaine & Tachi (Origamizer, seamless/watertight facet-covering creases); Demaine et al. (strip-wrapping silhouette edges).   
+https://origami.c.u-tokyo.ac.jp/~tachi/cg/DemaineTachiOrigamizerSoCG2017.pdf
+і ще 1
+
+2.2 Structural / Framing Folds (ROLE_STRUCT)
+Definition: Creases that establish spatial rigidity, load-bearing cross-sections, internal bulkheads, or geometric spacing between functional regions without necessarily defining the outer aesthetic silhouette.
+
+Constructive Function: Converts flexible flat sheet regions into stiffened structural members (e.g., V-beams, corrugated ribs, polyhedral wall gussets) by increasing the second moment of area of the cross-section, or allocates paper width between appendages.   
+SiggraphAsia2008DDGCourse.pdf
+
+Example: The V-shaped fuselage keel of a paper glider (which converts bending loads into in-plane membrane stretching); rivers and transitional pleats separating flaps in box-pleated designs; internal wall triangles in Origamizer polyhedra.   
+SiggraphAsia2008DDGCourse.pdf
+і ще 2
+
+Distinguishing Characteristics: Governs flexural stiffness 
+𝐾
+𝜃
+K 
+θ
+​
+ , spatial separation, and resistance to buckling under gravity or handling, even when hidden inside the model.   
+SiggraphAsia2008DDGCourse.pdf
+
+Confidence Level: High.
+
+Source or Evidence: Grinspun et al. (Discrete Shells: V-beam flexural rigidity vs. flat beam, Fig. 5); Lang / OMR corpus (rivers, stretch devices, wall triangles).   
+SiggraphAsia2008DDGCourse.pdf
+і ще 1
+
+2.3 Connecting / Joining Folds (ROLE_CONNECT)
+Definition: Creases that bring spatially separated regions of a single sheet (or distinct modules in modular origami) into overlapping, nested, or abutting contact to establish topological continuity or closed shells.
+
+Constructive Function: Bridges seams, wraps flaps around mating edges, or aligns layers in a prescribed stacking order so disparate regions act as a unified assembly.   
+paper.pdf
+і ще 1
+
+Example: Wrapping the upper rim flaps over the side walls into the interior of a Masu box; overlapping seam allowances (kasaneru bubun / 重ねる部分) in Fujimoto’s polyhedral cylinders; inserting a Sonobe module tab into an adjacent unit's pocket.   
+Twist Origami 3.pdf
+
+Distinguishing Characteristics: Establishes adjacency and layer-overlap relationships (stacking order) across a seam, without necessarily preventing reversal if pulled along the insertion axis.
+
+Confidence Level: High.
+
+Source or Evidence: Fujimoto (Twist Origami / polyhedral diagrams showing kasaneru bubun and wa ni suru — forming a ring); Demaine et al. (seam-hiding and strip-turning gadgets).   
+Twist Origami 3.pdf
+і ще 1
+
+2.4 Locking / Retention Folds (ROLE_LOCK)
+Definition: Creases or crease-complexes that mechanically constrain an existing connection or folded configuration against separation, spring-back, or unfolding under external or internal elastic restoring forces.
+
+Constructive Function: Introduces a geometric, kinematic, or frictional barrier that prevents relative translation or dihedral un-rotation of joined layers.
+
+Example: The final corner tuck of a candy-wrapper closure; the diagonal locking crease inside a tomeshiro (locking allowance) tab; an outside reverse fold (kabuse-ori) straddling and clamping internal layers.
+
+Distinguishing Characteristics: Specifically resists release (kinematic reversal 
+𝑓
+1
+→
+𝑓
+0
+f 
+1
+​
+ →f 
+0
+​
+ ); often involves negligible surface area but high mechanical criticality.
+
+Confidence Level: High (conceptually distinct from ROLE_CONNECT, though frequently paired with it).
+
+Source or Evidence: Fujimoto (tomeshiro / 止め代 and uchigawa yori fusagu / 内側よりふさぐ — closing/blocking from the inside).
+
+2.5 Kinematic / Control Folds (ROLE_KINEMATIC)
+Definition: Hinges and coupled vertex gadgets that transmit, synchronize, amplify, or suppress motion between degrees of freedom during folding or deployment.
+
+Constructive Function: Enforces rotational compatibility 
+𝑅
+𝑐
+1
+(
+𝜌
+1
+)
+⋯
+𝑅
+𝑐
+𝑛
+(
+𝜌
+𝑛
+)
+=
+𝐼
+R 
+c 
+1
+​
+ 
+​
+ (ρ 
+1
+​
+ )⋯R 
+c 
+n
+​
+ 
+​
+ (ρ 
+n
+​
+ )=I around vertices, dictating speed coefficients (
+𝑝
++
+,
+𝑝
+−
+p 
++
+​
+ ,p 
+−
+​
+ ), branching modes at flat-state singularities, and actuated deployment paths.   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 2
+
+Example: Degree-4 flat-foldable vertices in a Miura-ori tessellation; splitters (gutter, staircase, widening) and suppressors in rigid-foldable logic gadgets; the central hinge of a flapping bird base.   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+Distinguishing Characteristics: Defined by its role in the configuration space homotopy 
+𝐹
+:
+𝑀
+×
+[
+0
+,
+1
+]
+→
+𝑅
+3
+F:M×[0,1]→R 
+3
+  rather than static end-state geometry alone; includes "optional" creases (
+𝜌
+𝑖
+=
+0
+ρ 
+i
+​
+ =0) that selectively lock or unlock modes.   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 1
+
+Confidence Level: Very High (mathematically formalized in rigid origami kinematics).
+
+Source or Evidence: Ku & Tachi (Rigid Foldability is NP-Hard: speed coefficients, splitters, suppressors, optional creases).   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+2.6 Auxiliary / Procedural Folds (ROLE_AUX)
+Definition: Creases created to locate reference landmarks, pre-crease hinges for subsequent compound maneuvers, or hide excess material cleanly without contributing to the final structural load path or primary geometry.
+
+Constructive Function: Serves as a geometric ruler (Huzita–Justin alignment axioms), reduces hinge stiffness prior to a sink/reverse fold, or tucks surplus paper beneath a visible facet.   
+GitHub - zacharyfmarion/ori-studio: Design and validate origami models · GitHub
+і ще 2
+
+Example: Pinch marks locating thirds or fifths on a grid; pre-creases before an open/closed sink; hidden excess-hiding mountain folds under a convex silhouette.   
+Twist Origami 3.pdf
+і ще 2
+
+Distinguishing Characteristics: In the final state 
+𝑓
+1
+f 
+1
+​
+ , auxiliary reference creases have 
+𝜌
+𝑖
+=
+0
+ρ 
+i
+​
+ =0 (unfolded), while excess-hiding creases lie purely on the non-visible interior without bearing structural loads.   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 2
+
+Confidence Level: High.
+
+Source or Evidence: Ku & Tachi (creases labeled 0 / "Not in use" in 
+𝐶
+∖
+𝐶
+(
+𝑓
+)
+C∖C(f)); Demaine et al. (Theorem 2 excess-hiding folds); OMR Fold workspace (precrease folds).   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 2
+
+3. Functional Angle Classification
+In OMR, three distinct mathematical angle types must never be conflated:
+
+Sector Angle (
+𝜃
+𝑖
+,
+𝑖
++
+1
+θ 
+i,i+1
+​
+ ): The intrinsic planar angle between adjacent crease rays 
+𝑐
+𝑖
+,
+𝑐
+𝑖
++
+1
+c 
+i
+​
+ ,c 
+i+1
+​
+  meeting at a vertex on the flat sheet 
+𝑀
+M. Invariant under isometric folding.   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+Dihedral Fold Angle (
+𝜌
+𝑖
+ρ 
+i
+​
+ ): The signed rotation angle between the surface normals of two adjacent 2-cells incident to crease 
+𝑐
+𝑖
+c 
+i
+​
+  (
+𝜌
+𝑖
+=
+0
+ρ 
+i
+​
+ =0 flat, 
+𝜌
+𝑖
+>
+0
+ρ 
+i
+​
+ >0 valley, 
+𝜌
+𝑖
+<
+0
+ρ 
+i
+​
+ <0 mountain, 
+∣
+𝜌
+𝑖
+∣
+=
+𝜋
+∣ρ 
+i
+​
+ ∣=π flat-folded).   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+Spatial / Inter-Surface Angle (
+𝜙
+𝐴
+,
+𝐵
+ϕ 
+A,B
+​
+ ): The 3D angle in 
+𝑅
+3
+R 
+3
+  between non-adjacent panels, flanges, or structural axes (e.g., wing dihedral angle of an airplane, or the insertion angle of a locking tab relative to a pocket mouth).
+
+Functional Taxonomy of Angles
+Functional Angle Class	Defining Geometric Objects	Determines Final Shape?	Controls a DOF?	Participates in Locking?	Changes During Folding?	Independent or Constrained?	Structural Consequence of Value Change
+1. Shape-Defining Angles	Sector angles 
+𝜃
+𝑖
+,
+𝑖
++
+1
+θ 
+i,i+1
+​
+  of visible facets; target dihedral angles 
+𝜌
+𝑖
+ρ 
+i
+​
+  of primary edges.	Yes (directly sets facet shape and 3D polyhedral angles).	Indirectly (sets boundary conditions).	No.	
+𝜃
+θ: No (metric invariant).
+
+
+𝜌
+ρ: Yes (
+0
+→
+𝜌
+target
+0→ρ 
+target
+​
+ ).
+
+Constrained by Gaussian curvature defect 
+∑
+𝜃
+𝑘
+=
+2
+𝜋
+∑θ 
+k
+​
+ =2π at interior vertices. 
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 1
+
+Distorts silhouette, violates polyhedral closure, or prevents flat-foldability (Kawasaki's theorem). 
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 1
+
+2. Structural Angles	Dihedral angles 
+𝜌
+𝑖
+ρ 
+i
+​
+  of stiffening ribs/keels; spatial angles 
+𝜙
+ϕ between load-bearing walls.	Partially (sets cross-sectional depth).	Often freezes local bending DOFs.	Indirectly (maintains wall spacing for pockets).	
+𝜌
+ρ: Yes (actuated during shaping).	Constrained by connected panel compatibility.	
+As 
+𝜌
+→
+0
+ρ→0 (flattening a V-beam), flexural stiffness 
+𝐾
+𝜃
+K 
+θ
+​
+  collapses and panel buckles. 
+SiggraphAsia2008DDGCourse.pdf
+
+3. Connection Angles	
+Spatial alignment angle 
+𝜙
+tab,pocket
+ϕ 
+tab,pocket
+​
+  between mating edges/flaps; strip-turn sector angles 
+𝜇
+μ. 
+paper.pdf
+
+No (hidden or seam-level).	Guides insertion trajectory.	Enables engagement of overlapping layers.	
+𝜙
+ϕ: Yes (converges to 
+0
+0 or 
+𝜋
+π upon mating).	Constrained by seam geometry and layer thickness 
+𝑡
+t.	Misalignment prevents tab insertion, causes seam gapping, or induces layer collision.
+4. Locking Angles	Hook/undercut sector angle 
+𝜃
+hook
+θ 
+hook
+​
+ ; over-center dihedral angle 
+𝜌
+lock
+ρ 
+lock
+​
+ ; friction wedge angle 
+𝛼
+𝑤
+α 
+w
+​
+ .	No (typically internal).	Yes (eliminates or blocks the unfolding DOF).	Yes (primary retention parameter).	
+𝜌
+lock
+ρ 
+lock
+​
+ : Yes (snaps past threshold); 
+𝜃
+hook
+θ 
+hook
+​
+ : No.	Constrained by pocket depth, wall stiffness, and coefficient of friction 
+𝜇
+𝑠
+μ 
+s
+​
+ .	If 
+𝛼
+𝑤
+>
+arctan
+⁡
+(
+𝜇
+𝑠
+)
+α 
+w
+​
+ >arctan(μ 
+s
+​
+ ) or undercut vanishes, lock slips open spontaneously under elastic spring-back.
+5. Movement-Controlling Angles	
+Sector angles 
+(
+𝛼
+,
+𝛽
+)
+(α,β) at degree-4 vertices; active input fold angle 
+𝜌
+in
+ρ 
+in
+​
+ . 
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+Only at kinematic endpoints.	
+Yes (directly parameterizes 1-DOF path and speed ratio 
+𝑝
+p). 
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+Can create kinematic singularity locks (e.g., 
+𝜃
+=
+90
+∘
+θ=90 
+∘
+  suppressor). 
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+𝛼
+,
+𝛽
+α,β: No.
+
+
+𝜌
+in
+ρ 
+in
+​
+ : Yes (driving coordinate).
+
+Coupled via spherical trigonometry: 
+tan
+⁡
+𝜌
+2
+2
+=
+𝑝
+(
+𝛼
+,
+𝛽
+)
+tan
+⁡
+𝜌
+1
+2
+tan 
+2
+ρ 
+2
+​
+ 
+​
+ =p(α,β)tan 
+2
+ρ 
+1
+​
+ 
+​
+ . 
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+Alters mechanical advantage/folding speed 
+𝑝
+p; at 
+𝛼
+=
+90
+∘
+α=90 
+∘
+ , sets 
+𝑝
+=
+0
+p=0 and blocks orthogonal creases. 
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+6. Resulting / Derived Angles	Passive dihedral angles 
+𝜌
+out
+ρ 
+out
+​
+  in coupled mechanisms; spatial gaps/clearances 
+𝜙
+res
+ϕ 
+res
+​
+ .	Yes (emergent 3D posture).	No (slave variable).	Sometimes (passive wedging).	Yes (driven by independent angles).	Fully constrained (dependent function of driving angles and sector geometry).	Cannot be changed independently without tearing/stretching paper or changing upstream driving angles.
+Confidence Level: High (grounded in rigid origami vertex kinematics, discrete shell mechanics, and strip-turn geometry).   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 2
+
+Source or Evidence: Ku & Tachi (Eq. 2, Lemma 2.8, Lemma 4.5); Demaine et al. (turn angle 
+𝜇
+μ in Fig. 4–5); Grinspun et al. (V-beam dihedral angle).   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 2
+
+4. Locking Mechanism Catalogue
+Terminological Verification Note: Standard Japanese terms verified against the OMR linguistic corpus and Shuzo Fujimoto’s polyhedral texts include: tomeshiro (止め代 — locking tab/allowance), kabuse-ori (かぶせ折り — outside reverse fold), nakawari-ori (中割り折り — inside reverse fold), shizume-ori (沈め折り — sink fold), dan-ori (段折り — pleat/crimp step), and kado (角 — physical paper corner) vs. kaku (角 — geometric angle).
+
+4.1 Tuck Fold & Pocket-and-Flap Tuck Lock (Sashikomi / Tomeshiro Tab Lock)
+Construction: A protruding triangular or trapezoidal flap (tomeshiro / 止め代) is creased along a hinge line and inserted into a pre-existing multi-layer pocket formed by folded walls.
+
+Interacting Parts: Male insertion flap (tab), female pocket opening (two or more stacked layers bounded by closed crease edges), and the hinge crease connecting the tab to the main body.
+
+Geometric Relationship for Retention: The tab’s insertion vector is roughly perpendicular to the primary opening/unfolding vector of the host walls. Once inside, the pocket walls constrain the tab against out-of-plane rotation, while the pocket's closed crease boundary blocks lateral translation.
+
+Purely Geometric vs. Physical: Hybrid (Geometric + Physical). Geometrically, the pocket blocks out-of-plane separation, but along the 1D withdrawal axis (pulling the tab straight back out), retention depends entirely on sheet bending stiffness (curving the tab to enter the slot, then elastic recovery pressing it against the pocket walls) and Coulomb friction between paper surfaces.
+
+Reversibility: Fully reversible.
+
+Non-Destructive Release: Yes, by elastically bowing the tab or widening the pocket mouth to withdraw the tab along its insertion axis.
+
+Sequence Dependency: Strict. The pocket walls must be formed and positioned before the tab is flexed and inserted into the pocket slot.
+
+Formal vs. Procedural Description: Currently described procedurally in origami literature (e.g., Fujimoto’s uchigawa yori fusagu); lacks a standard closed-form rigid-origami equation because insertion requires temporary non-rigid elastic bending of the flap.
+
+Confidence Level: High.
+
+Source or Evidence: Fujimoto (Twist Origami / polyhedral construction notes, p. 36 & p. 109).
+
+4.2 Undercut / Hooked Pocket Lock (Interlocking Tab-and-Slot / Ear-Lock)
+Construction: Similar to 4.1, but the inserted flap is shaped with a lateral shoulder, barb, or acute corner (kado) that expands wider than the pocket throat once inside, or folds back inside the pocket.
+
+Interacting Parts: Hooked tab shoulder, constricted pocket entry throat, and internal pocket cavity.
+
+Geometric Relationship for Retention: The width of the tab inside the cavity (
+𝑤
+tab
+w 
+tab
+​
+ ) exceeds the width of the pocket entrance (
+𝑤
+throat
+w 
+throat
+​
+ ), creating a positive geometric undercut (
+𝜃
+hook
+<
+90
+∘
+θ 
+hook
+​
+ <90 
+∘
+  against the withdrawal direction).
+
+Purely Geometric vs. Physical: Primarily Geometric (with elastic snap-in). Even with zero friction (
+𝜇
+𝑠
+=
+0
+μ 
+s
+​
+ =0), rigid withdrawal is blocked by boundary collision between the tab shoulder and the pocket throat edge, unless the paper is elastically buckled to reduce 
+𝑤
+tab
+<
+𝑤
+throat
+w 
+tab
+​
+ <w 
+throat
+​
+ .
+
+Reversibility: Reversible with deliberate manipulation.
+
+Non-Destructive Release: Yes, provided the paper is flexed/deformed enough to clear the undercut without creasing or tearing the throat.
+
+Sequence Dependency: Strict (requires temporary elastic deformation during insertion).
+
+Formal vs. Procedural Description: Procedural in origami; analogous to snap-fit cantilever mechanics in mechanical engineering.
+
+Confidence Level: High.
+
+Source or Evidence: Fujimoto (tomeshiro geometries); classical envelope/box closures.
+
+4.3 Outside Reverse Fold Clamp (Kabuse-ori Wrap Lock)
+Construction: Two or more adjacent layers (often the spine or nose of a model) are wrapped externally over an internal core via an outside reverse fold (kabuse-ori — かぶせ折り), inverting the spine crease from mountain to valley (or vice versa) so the outer walls straddle the inner layers.
+
+Interacting Parts: External straddling walls (clamping jaws) and internal sandwiched layers (core).
+
+Geometric Relationship for Retention: The outer walls form a U-shaped saddle (
+𝜌
+spine
+≈
+±
+𝜋
+ρ 
+spine
+​
+ ≈±π) that physically encapsulates the inner layers on three sides, preventing the inner layers from splaying apart.
+
+Purely Geometric vs. Physical: Geometric encapsulation + Frictional clamping. Lateral separation of the internal core is geometrically blocked by the outer straddling walls; longitudinal sliding is resisted by pinch friction at the crease apex.
+
+Reversibility: Reversible.
+
+Non-Destructive Release: Yes, by opening the straddling outer flaps and un-inverting the apex.
+
+Sequence Dependency: Moderate to Strict (must be executed after the internal layers are collated).
+
+Formal vs. Procedural Description: Operationally defined in diagramming standards (kabuse-ori); mathematically modeled as a coupled multi-vertex sign inversion of the spine crease with layer-ordering constraints.
+
+Confidence Level: High.
+
+Source or Evidence: OMR Terminological Registry (kabuse-ori / かぶせ折り — physical encasement of the body).
+
+4.4 Crimp Fold Lock (Dan-ori Multi-Layer Step Lock)
+Construction: A pair of closely spaced parallel creases of opposite polarity (a pleat, dan-ori / 段折り) is applied simultaneously across multiple overlapping layers (e.g., locking the fuselage layers of a paper airplane or the neck/tail of a figure).
+
+Interacting Parts: Multiple stacked sheet layers sharing a common geometric cross-section.
+
+Geometric Relationship for Retention: A single crease through 
+𝑁
+N layers permits the layers to pivot independently around the crease axis. Adding a second parallel crease offset by distance 
+Δ
+𝑑
+Δd forces the layers to traverse a Z-shaped jog; because outer layers have a larger radius of curvature than inner layers, shearing/sliding between layers is kinematically coupled and restricted.
+
+Purely Geometric vs. Physical: Thickness- and Friction-Dependent (Capstan / Layer-Offset Effect). In an idealized zero-thickness sheet (
+𝑡
+=
+0
+t=0), parallel pleats through coplanar layers still allow free unfolding. In physical paper (
+𝑡
+>
+0
+t>0), finite thickness creates path-length differentials around the two bends, generating normal clamping forces and high static friction that lock the stack together.
+
+Reversibility: Reversible (though residual plastic creasing remains).
+
+Non-Destructive Release: Yes, by flattening both Z-folds simultaneously.
+
+Sequence Dependency: Must occur after the layers are brought into stacked alignment.
+
+Formal vs. Procedural Description: Procedural in origami (dan-ori / crimp); mathematically analyzed in thick-panel origami (Tachi) as a multi-hinge offset linkage.   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+Confidence Level: High.
+
+Source or Evidence: OMR Terminological Registry (dan-ori / crimp through multiple layers); Tachi (thick origami kinematics referenced in).   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+4.5 Closed Sink Lock (Nakawari-shizume-ori / Enclosed Inversion Lock)
+Construction: A pyramidal corner or polygonal ridge is pushed inside a closed pocket along a closed loop of creases (shizume-ori / 沈め折り) without opening the surrounding layers (closed sink), inverting all interior creases.
+
+Interacting Parts: Inverted interior cone/prism, surrounding outer wall facets, and the closed perimeter crease ring.
+
+Geometric Relationship for Retention: The perimeter crease ring forms a constricted aperture; once the pyramidal vertex is inverted inside, unfolding the outer walls requires simultaneously un-inverting the trapped inner cone, which collides with the outer walls.
+
+Purely Geometric vs. Physical: Purely Geometric / Kinematic Barrier. Even in a rigid, frictionless model, there is no continuous rigid folding path from the closed-sunk state back to the open state without self-intersection or elastic buckling of the facets (a topological/kinematic trap).
+
+Reversibility: Technically reversible, but requires high elastic deformation ("popping" the paper inside-out).
+
+Non-Destructive Release: Difficult; often causes creasing/crumpling of the facets during forced reversal because no rigid homotopy exists.
+
+Sequence Dependency: Strict. A closed sink cannot be folded rigidly from the flat state; it requires sequential non-rigid buckling during assembly.
+
+Formal vs. Procedural Description: Recognized in computational origami as a classic example of a rigidly reachable folded state with no rigid folding motion from 
+𝑓
+0
+f 
+0
+​
+  (a disconnected component in the rigid configuration space).   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+Confidence Level: Very High.
+
+Source or Evidence: Ku & Tachi (disconnected configuration space components / rigid foldability obstruction); OMR Terminological Registry (shizume-ori).   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+4.6 Interlocking Flaps & Twist-Lock Closures (Cyclic Overlap / Iris Lock)
+Construction: 
+𝑁
+≥
+3
+N≥3 flaps around a polygonal opening (such as a hexagonal box lid or cyclic twist tessellation) are folded sequentially so that flap 
+𝑘
+k overlaps flap 
+𝑘
++
+1
+k+1, and the final flap 
+𝑁
+N is tucked beneath flap 
+1
+1.   
+Twist Origami 3.pdf
+
+Interacting Parts: Cyclic sequence of 
+𝑁
+N boundary flaps and their crease hinges.
+
+Geometric Relationship for Retention: Creates a cyclic topological weave (
+𝐿
+1
+≺
+𝐿
+2
+≺
+⋯
+≺
+𝐿
+𝑁
+≺
+𝐿
+1
+L 
+1
+​
+ ≺L 
+2
+​
+ ≺⋯≺L 
+N
+​
+ ≺L 
+1
+​
+  in local layer stacking order), eliminating any free top-most flap that can lift first.
+
+Purely Geometric vs. Physical: Topological Layer-Ordering + Bending Stiffness. Because no flap has an unobstructed vertical exit path, simultaneous lifting of all 
+𝑁
+N flaps is blocked by their non-parallel hinge axes, requiring elastic bending of flap 
+𝑁
+N to disengage.
+
+Reversibility: Reversible (by reversing the tuck of flap 
+𝑁
+N).
+
+Non-Destructive Release: Yes, straightforward if released at the final tucked flap.
+
+Sequence Dependency: Strict cyclic sequence (
+1
+→
+2
+→
+⋯
+→
+𝑁
+1→2→⋯→N, with 
+𝑁
+N tucked under 
+1
+1).
+
+Formal vs. Procedural Description: Formalized via layer-ordering / stacking-order constraints (
+𝜆
+λ relations in flat-foldability theory) combined with non-parallel hinge constraints.
+
+Confidence Level: Very High.
+
+Source or Evidence: OMR corpus (stacking order preventing collisions and stabilizing layer packets); Fujimoto (cyclic overlapping assemblies, e.g., p. 61 & p. 96).   
+Solid Origami.pdf
+і ще 1
+
+4.7 Bistable / Over-Center Snap Locks (Curved-Crease or Torsion-Spring Buckling Locks)
+Construction: Creases arranged around an incompatible (non-developable or over-constrained) vertex or curved crease force panels to store elastic bending energy during intermediate motion (
+0
+<
+𝑡
+<
+1
+0<t<1), snapping into a low-energy local minimum at 
+𝑡
+=
+1
+t=1.
+
+Interacting Parts: Elastically bowed panels and coupled crease hinges (e.g., waterbomb base / Magic Ball cells, snapology joints, or hyperbolic paraboloid twists).
+
+Geometric Relationship for Retention: The dihedral angle passes through an unstable equilibrium peak (energy barrier 
+Δ
+𝐸
+>
+0
+ΔE>0) into a stable resting angle 
+𝜌
+stable
+ρ 
+stable
+​
+ .
+
+Purely Geometric vs. Physical: Elastic Energy Bistability (Incompatible Undeformed Metric). Requires panel bending stiffness (
+𝐾
+𝜃
+>
+0
+K 
+θ
+​
+ >0); in a zero-stiffness membrane or pure rigid-panel model, it either cannot move or does not snap.   
+SiggraphAsia2008DDGCourse.pdf
+
+Reversibility: Fully reversible (bistable toggle).
+
+Non-Destructive Release: Yes, designed for repeated snapping without damage.
+
+Sequence Dependency: Low (often actuates simultaneously across the cell).
+
+Formal vs. Procedural Description: Formalized in discrete shell mechanics (elastic potential energy landscapes of dihedral and bending angles) and reprogrammable mechanical metamaterials.   
+SiggraphAsia2008DDGCourse.pdf
+і ще 1
+
+Confidence Level: Very High.
+
+Source or Evidence: Grinspun et al. (Discrete Shells: non-zero rest energy / elastic bistability, Fig. 6); Silverberg et al. (reprogrammable mechanical metamaterials, cited in).   
+SiggraphAsia2008DDGCourse.pdf
+і ще 1
+
+5. Constructive Significance and Criticality
+A single 1D ranking (e.g., Primary > Secondary > Auxiliary) is mathematically and constructively insufficient because geometric importance and mechanical stability are orthogonal axes. Removing a fold can fail a structure in completely different ways:
+
+Removing the nose-tip fold of a dart airplane alters length slightly (Geometrically Secondary) and changes nothing structurally.
+
+Removing the final wing-root lock or fuselage crimp alters almost zero visible area (Geometrically Secondary), yet causes the wings to spring open and lose all aerodynamic dihedral (Mechanically Retention-Critical).
+
+Multi-Axis Criticality Vector for OMR
+Each fold or functional gadget 
+𝑒
+e should be evaluated along four independent significance dimensions:
+
+Morphological Criticality (
+𝜅
+form
+∈
+{
+Primary
+,
+Secondary
+,
+Null
+}
+κ 
+form
+​
+ ∈{Primary,Secondary,Null}):
+
+Test: If 
+𝑒
+e is set to 
+𝜌
+=
+0
+ρ=0 (while artificially clamping all other creases at their target angles), does the 3D outer envelope/silhouette change fundamentally (Primary), only in fine detail (Secondary), or not at all (Null, e.g., internal or pre-crease folds)?
+
+Structural / Stiffness Criticality (
+𝜅
+struct
+∈
+{
+Load-Bearing
+,
+Stabilizing
+,
+Null
+}
+κ 
+struct
+​
+ ∈{Load-Bearing,Stabilizing,Null}):
+
+Test: If 
+𝑒
+e is removed, does the structure lose load-bearing rigidity (e.g., a V-beam flattening into a limp sheet) or collapse under gravity?   
+SiggraphAsia2008DDGCourse.pdf
+
+Retention / Topological Criticality (
+𝜅
+lock
+∈
+{
+Lock-Critical
+,
+Connection-Only
+,
+Null
+}
+κ 
+lock
+​
+ ∈{Lock-Critical,Connection-Only,Null}):
+
+Test: If 
+𝑒
+e is removed (without external glue/clamps), do joined parts separate or spring back toward 
+𝑓
+0
+f 
+0
+​
+  (Lock-Critical), remain in contact without mechanical resistance (Connection-Only), or remain unaffected (Null)?
+
+Kinematic Criticality (
+𝜅
+kin
+∈
+{
+Essential-Hinge
+,
+Mode-Selector
+,
+Auxiliary
+}
+κ 
+kin
+​
+ ∈{Essential-Hinge,Mode-Selector,Auxiliary}):
+
+Test: During the continuous folding motion 
+𝐹
+(
+𝑀
+,
+𝑡
+)
+F(M,t), is 
+𝑒
+e required for rigid/continuous reachability (Essential-Hinge), does it prevent an undesired bifurcation branch (Mode-Selector, e.g., 
+𝜌
+=
+0
+ρ=0 suppressor), or is it merely a construction shortcut (Auxiliary)?   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+Confidence Level: High (resolves the contradiction between geometric scale and mechanical necessity).
+
+6. Real Origami Examples
+6.1 Classic Dart Paper Airplane (Nose, Keel, and Wing-Locking Assembly)
+Shape-Creating Folds (ROLE_FORM):
+
+Centerline longitudinal valley fold (establishes bilateral symmetry and fuselage spine).
+
+Nose-narrowing diagonal folds (establish the pointed delta-wing planform).
+
+Horizontal wing-root mountain folds (define the lifting wing surfaces vs. vertical keel).
+
+Structural Folds (ROLE_STRUCT):
+
+The combination of the centerline valley and two parallel wing-root mountain folds creates a Y- or V-shaped beam cross-section, providing longitudinal bending stiffness so the nose does not droop in flight.   
+SiggraphAsia2008DDGCourse.pdf
+
+Connecting & Locking Folds (ROLE_CONNECT + ROLE_LOCK):
+
+Standard Dart (Unlocked): The fuselage layers merely abut; aerodynamic lift or gravity causes the V-keel to splay open (
+𝜅
+lock
+=
+Null
+κ 
+lock
+​
+ =Null).
+
+Locked-Keel Variant (e.g., Nakazawa / lock-bottom dart): Folding the small residual nose-tip triangle upward over the bottom keel edge (ROLE_CONNECT) and crimping/tucking it (ROLE_LOCK) mechanically clamps the left and right fuselage walls together. This tiny tip fold is Morphologically Secondary (
+𝜅
+form
+=
+Secondary
+κ 
+form
+​
+ =Secondary) yet Retention-Critical (
+𝜅
+lock
+=
+Lock-Critical
+κ 
+lock
+​
+ =Lock-Critical).
+
+6.2 Traditional Origami Boat (Fune / Sampan — Inversion & Hull Locking)
+Shape-Creating & Auxiliary Folds:
+
+Initial grid/blintz folds and diagonal pre-creases (ROLE_AUX) establish corner flaps.
+
+Side-wall folds create the triangular bow, stern, and gunwales (ROLE_FORM).
+
+Kinematic & Structural Transformation:
+
+Turning the model inside-out (a global inversion maneuver related to reverse/sink kinematics) transforms flat folded pockets into a hollow 3D hull (ROLE_FORM + ROLE_STRUCT).
+
+Retention Mechanism:
+
+The bow and stern peaks are held upright by coupled vertex incompatibility and layer-wrap friction at the gunwale roll-folds (ROLE_LOCK). If the gunwale folds are unrolled, the hull collapses flat; thus, the gunwale creases simultaneously serve ROLE_FORM (rim edge), ROLE_STRUCT (hoop stiffness), and ROLE_LOCK (preventing hull splaying).
+
+6.3 Candy-Wrapper / Packet-End Closure (Twisted or Pleated-and-Tucked Closure)
+Connection vs. Lock Separation:
+
+Shape-Creating (ROLE_FORM): Longitudinal tube/pouch folds form the cylindrical or rectangular container body.
+
+Connecting (ROLE_CONNECT): Flattening the open end and folding it over once or twice brings opposing walls into overlapping contact, closing the aperture topologically—but elastic memory immediately springs the flap open if released.
+
+Locking (ROLE_LOCK): Either (a) folding the corners inward and tucking the distal lip into the transverse pleat pocket (pocket-and-flap lock, Section 4.1), or (b) crimping the pleated end with a high-curvature Z-fold (crimp lock, Section 4.4) or twist-pinch. Here, the connection fold closes the opening, while the subsequent tuck/crimp locks the closure.
+
+6.4 Traditional Masu Box & Locking Lids
+Shape-Creating (ROLE_FORM): The four base-square creases and four vertical wall creases define the cubic volume.
+
+Structural (ROLE_STRUCT): The four diagonal corner gusset folds (miters) fold flat against the inside walls, keeping adjacent walls orthogonal (
+90
+∘
+90 
+∘
+ ) without cuts.
+
+Connecting & Locking (ROLE_CONNECT + ROLE_LOCK):
+
+Folding the four top rim extensions 
+180
+∘
+180 
+∘
+  over the top wall edges into the box interior (ROLE_CONNECT) traps the diagonal corner gussets between the inner and outer wall layers.
+
+The final bottom-lying triangular flaps meet at the center of the floor; wedging them flat against the base creates a friction-and-geometry pocket lock (ROLE_LOCK) that holds the vertical walls at 
+90
+∘
+90 
+∘
+  without adhesive.
+
+6.5 Modular Origami (Sonobe Unit Assembly)
+Shape-Creating (ROLE_FORM): Diagonal mountain/valley creases across the central square module form the 3D pyramidal facets of a stellated octahedron or icosahedron.
+
+Connecting (ROLE_CONNECT): The two acute triangular end-flaps are inserted into the internal pockets of adjacent units.
+
+Locking (ROLE_LOCK): Retention in a Sonobe assembly is emergent and global, not local to a single tab:
+
+A single tab-in-pocket pair slides apart effortlessly along its insertion axis (ROLE_CONNECT only).
+
+When three units close a triangular cycle around a vertex, the three insertion axes are mutually non-parallel (
+60
+∘
+60 
+∘
+  apart). Any translation that withdraws Tab A drives Tab B deeper into Pocket B, creating a global kinematic cage lock where friction + non-parallel insertion vectors prevent disassembly unless the paper is elastically bent.
+
+7. Overlaps, Contradictions, and Missing Categories
+Testing the preliminary six categories against actual origami structures exposes four critical structural findings:
+
+Systematic Multi-Functionality (Role Overlap):
+
+Creases are rarely single-purpose. In a Masu box, the top rim fold is simultaneously ROLE_FORM (defines the upper rim edge), ROLE_CONNECT (wraps the outer wall to the inner wall), and ROLE_LOCK (traps the corner miter).
+
+Resolution: OMR must model functional classes as non-exclusive capability flags / role relations (
+Roles
+(
+𝑐
+𝑖
+)
+⊆
+{
+FORM
+,
+STRUCT
+,
+CONNECT
+,
+LOCK
+,
+KINEMATIC
+,
+AUX
+}
+Roles(c 
+i
+​
+ )⊆{FORM,STRUCT,CONNECT,LOCK,KINEMATIC,AUX}), not a partition.
+
+Contradiction Between "Auxiliary" and "Active Hidden Geometry":
+
+The preliminary definition of AUXILIARY lumps together (a) unfolded construction marks (
+𝜌
+𝑖
+=
+0
+ρ 
+i
+​
+ =0 in 
+𝑓
+1
+f 
+1
+​
+ , used only as Huzita–Justin alignment guides) and (b) excess-hiding folds (such as Origamizer tuck proxies or strip-wrapping under-folds, which have 
+𝜌
+𝑖
+=
+±
+𝜋
+ρ 
+i
+​
+ =±π in 
+𝑓
+1
+f 
+1
+​
+ ).   
+GitHub - zacharyfmarion/ori-studio: Design and validate origami models · GitHub
+і ще 2
+
+Resolution: Split AUXILIARY into two distinct concepts:
+
+Procedural Reference Creases (ROLE_REF): Unfolded (
+𝜌
+𝑖
+=
+0
+ρ 
+i
+​
+ =0) landmarks in 
+𝑓
+1
+f 
+1
+​
+ .   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+Excess-Management / Padding Folds (ROLE_EXCESS): Active folds (
+𝜌
+𝑖
+≠
+0
+ρ 
+i
+​
+ 
+
+=0) that stow surplus paper area or equalize layer thickness without carrying primary shape or load.   
+https://origami.c.u-tokyo.ac.jp/~tachi/cg/DemaineTachiOrigamizerSoCG2017.pdf
+і ще 1
+
+Missing Category — Surface / Color-Routing Folds (ROLE_SURFACE):
+
+In two-color origami (e.g., Demaine et al. color-reversal gadget, iso-area pinwheels, or color-changed eyes/stripes in figurative models), specific crease gadgets exist solely to invert the visible face normal (
+𝑛
+⃗
+→
+−
+𝑛
+⃗
+n
+
+ →− 
+n
+
+ ) so the opposite side of the sheet faces outward. This is neither shape-generating (the silhouette can remain identical) nor structural/locking.   
+paper.pdf
+і ще 2
+
+Scale Mismatch (Single Crease vs. Constructive Gadget):
+
+Functional roles like LOCKING or KINEMATIC_CONTROL almost never belong to a single isolated crease line 
+𝑐
+𝑖
+c 
+i
+​
+ ; they are emergent properties of topological subgraphs (gadgets)—such as a 4-crease square twist, a 3-crease color-reversal gadget, or a tab-plus-pocket pair.   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 1
+
+8. Possible OMR Representation
+Without altering OMR's core geometric primitives or prematurely binding to L1–L7 verification boundaries, constructive functionality can be represented as an annotation/hypergraph layer over the existing crease pattern 
+𝐶
+=
+(
+𝑉
+,
+𝐸
+,
+𝐹
+)
+C=(V,E,F) and folded state 
+𝑓
+1
+f 
+1
+​
+ :
+
+8.1 Constructive Element Schema (ConstructiveUnit)
+A ConstructiveUnit 
+𝑈
+U may reference either a single crease 
+𝑒
+∈
+𝐸
+e∈E, a vertex 
+𝑣
+∈
+𝑉
+v∈V, or a connected subgraph/gadget 
+𝐺
+=
+(
+𝑉
+𝐺
+,
+𝐸
+𝐺
+,
+𝐹
+𝐺
+)
+⊆
+𝐶
+G=(V 
+G
+​
+ ,E 
+G
+​
+ ,F 
+G
+​
+ )⊆C:
+
+unit_id: Unique identifier.
+
+carrier_topology: {creases: [e_i], vertices: [v_j], faces: [f_k], boundary_edges: [b_m]} (identifies participating faces, edges, and physical corners kado).
+
+geometric_primitive: {mv_assignment: M | V | 0, operation_type: simple | reverse | sink_open | sink_closed | crimp | pleat | squash | rabbit_ear | petal | twist}.   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+і ще 1
+
+functional_roles (Multi-label set): Subset of {FORM, STRUCT, CONNECT, LOCK, KINEMATIC, SURFACE_COLOR, EXCESS_MGMT, PROCEDURAL_REF}.
+
+criticality_profile (4D Vector):
+
+morphological: Primary | Secondary | Null
+
+structural: LoadBearing | Stabilizing | Null
+
+retention: LockCritical | ConnectionOnly | Null
+
+kinematic: EssentialHinge | ModeSelector | Auxiliary
+
+angular_parameters:
+
+sector_angles: 
+𝜃
+𝑖
+,
+𝑖
++
+1
+θ 
+i,i+1
+​
+  (invariant metrics)   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+target_dihedral_angles: 
+𝜌
+𝑖
+∈
+[
+−
+𝜋
+,
+𝜋
+]
+ρ 
+i
+​
+ ∈[−π,π]   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+spatial_relations: 
+𝜙
+𝐴
+,
+𝐵
+ϕ 
+A,B
+​
+  (inter-panel clearance/insertion angles)
+
+coupling_constraints: Speed ratio equations 
+𝑝
+(
+𝛼
+,
+𝛽
+)
+p(α,β) or angular defect 
+Δ
+𝜃
+Δθ.   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+retention_mechanism (Nullable object, populated if LOCK or CONNECT 
+∈
+functional_roles
+∈functional_roles):
+
+mechanism_class: PocketFlap | UndercutHook | ReverseClamp | MultiLayerCrimp | ClosedSinkTrap | CyclicWeave | BistableSnap
+
+retention_physics: {geometric_blocking: bool, friction_dependent: bool, thickness_dependent: bool, elastic_bistability: bool}
+
+reversibility: Reversible_Free | Reversible_ElasticFlex | SemiPermanent_PlasticCrease
+
+non_destructive_release: bool
+
+dependency_dag:
+
+geometric_prerequisites: Upstream creases/vertices required to locate 
+𝑈
+U.
+
+sequence_constraints: Partial order 
+(
+𝑈
+𝑎
+≺
+𝑈
+𝑏
+)
+(U 
+a
+​
+ ≺U 
+b
+​
+ ) required for non-colliding assembly (e.g., pocket formed before tab insertion).
+
+verification_evidence_spec (Abstract requirements, decoupled from L1–L7):
+
+E.g., vertex_rotational_closure (
+∏
+𝑅
+𝑐
+𝑖
+(
+𝜌
+𝑖
+)
+=
+𝐼
+∏R 
+c 
+i
+​
+ 
+​
+ (ρ 
+i
+​
+ )=I), layer_stacking_consistency (no self-intersection), undercut_inequality (
+𝑤
+tab
+>
+𝑤
+throat
+w 
+tab
+​
+ >w 
+throat
+​
+ ), or friction_cone_check (
+𝛼
+𝑤
+<
+arctan
+⁡
+𝜇
+𝑠
+α 
+w
+​
+ <arctanμ 
+s
+​
+ ).   
+https://erikdemaine.org/papers/RigidOrigamiHard_JoCG/paper.pdf
+
+9. Open Questions
+Formalizing Elastic-Insertion Locks in Rigid/Thick Models: How should OMR represent locks (like standard pocket-and-flap tucks) that are rigidly stable once assembled (
+𝑡
+=
+1
+t=1), yet rigidly unreachable from 
+𝑓
+0
+f 
+0
+​
+  without temporary elastic panel bending during 
+𝑡
+∈
+(
+0
+,
+1
+)
+t∈(0,1)?
+
+Minimum Thickness Threshold (
+𝑡
+min
+⁡
+t 
+min
+​
+ ) for Friction/Crimp Locks: At what sheet-thickness-to-panel-size ratio (
+𝑡
+/
+𝐿
+t/L) does a multi-layer crimp (4.4) or Sonobe pocket lock transition from mathematically functional to physically slip-prone?
+
+Automated Gadget Recognition from Raw Crease Patterns: Given an unlabeled crease pattern 
+𝐶
+C with mountain-valley assignment and stacking order, can functional subgraphs (LOCK, KINEMATIC splitters, SURFACE_COLOR reversals) be detected algorithmically via subgraph isomorphism and configuration-space sensitivity analysis?
+
+Quantifying Structural Rigidity Gain: Can each ROLE_STRUCT fold (such as V-beams or corrugated ribs) be assigned an analytical stiffness multiplier based solely on dihedral angle 
+𝜌
+𝑖
+ρ 
+i
+​
+  and crease length, without running full finite-element shell simulation?   
+SiggraphAsia2008DDGCourse.pdf
+
+10. Recommended Next Research Experiments
+Ablation Sensitivity Analysis on Benchmark Crease Patterns (Read-Only Analytical Study):
+
+Select 5 canonical models (Dart Airplane, Traditional Boat, Masu Box, Sonobe Octahedron, Miura-ori Sheet) and systematically perturb or zero out (
+𝜌
+𝑖
+→
+0
+ρ 
+i
+​
+ →0) individual creases in simulation/analytical models to validate the 4D Criticality Profile (morphological, structural, retention, kinematic).
+
+Thick-Panel / Friction-Cone Modeling of Locking Mechanisms:
+
+Derive exact geometric inequalities for the 7 locking classes in Section 4 (e.g., relating pocket depth 
+𝑑
+d, tab length 
+𝑙
+l, sheet thickness 
+𝑡
+t, and static friction 
+𝜇
+𝑠
+μ 
+s
+​
+ ) to distinguish mathematically guaranteed geometric locks from friction-contingent retention.
+
+Gadget Subgraph Decomposition on Existing OMR/Origamizer Patterns:
+
+Map the functional role predicates onto documented crease patterns (such as Origamizer tuck proxies, strip-wrapping turn/color-reversal gadgets, and Ku–Tachi splitters) to verify whether the expanded 8-role vocabulary (FORM, STRUCT, CONNECT, LOCK, KINEMATIC, SURFACE_COLOR, EXCESS_MGMT, PROCEDURAL_REF) achieves 100% coverage without ambiguity.   
+https://origami.c.u-tokyo.ac.jp/~tachi/cg/DemaineTachiOrigamizerSoCG2017.pdf
+і ще 2
+
+Alignment Mapping to OMR Verification Boundaries:
+
+Only after validating the schema in Experiments 1–3, evaluate which verification evidence requirements (e.g., rotational closure, stacking order, friction-cone stability) correspond naturally to existing OMR verification boundaries without altering canonical primitives.
